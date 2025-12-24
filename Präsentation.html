@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedSecure v62 Präsentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Highlight.js für Code-Highlighing -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        body { overflow: hidden; background: #0f172a; color: white; font-family: 'Segoe UI', sans-serif; }
+        .slide { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; text-align: center; animation: fadeIn 0.5s ease-in-out; }
+        .active { display: flex; }
+        .control-btn { position: fixed; bottom: 20px; background: rgba(255,255,255,0.1); color: white; padding: 10px 20px; border-radius: 30px; cursor: pointer; backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; z-index: 50; }
+        .control-btn:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
+        .prev { left: 20px; }
+        .next { right: 20px; }
+        h1 { font-size: 4rem; font-weight: 800; background: linear-gradient(to right, #2dd4bf, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1rem; }
+        h2 { font-size: 2.5rem; color: #cbd5e1; margin-bottom: 2rem; }
+        p { font-size: 1.5rem; color: #94a3b8; max-width: 800px; line-height: 1.6; }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
+        .card { background: #1e293b; p: 2rem; border-radius: 1rem; border: 1px solid #334155; padding: 20px; text-align: left; }
+        .icon { font-size: 3rem; margin-bottom: 1rem; display: block; }
+        .highlight { color: #2dd4bf; font-weight: bold; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Interactive Demo Styles */
+        .demo-box { width: 100%; max-width: 900px; background: #1e293b; border-radius: 1rem; overflow: hidden; border: 1px solid #334155; display: flex; text-align: left; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3); }
+        .demo-col { flex: 1; padding: 1.5rem; display: flex; flex-direction: column; }
+        .demo-input { background: #0f172a; border: 1px solid #334155; color: #cbd5e1; padding: 1rem; border-radius: 0.5rem; font-family: monospace; height: 150px; resize: none; margin-bottom: 1rem; outline: none; transition: border-color 0.3s; }
+        .demo-input:focus { border-color: #2dd4bf; }
+        .demo-output { background: #0f172a; border: 1px solid #334155; color: #a5f3fc; padding: 1rem; border-radius: 0.5rem; font-family: monospace; height: 150px; overflow-y: auto; white-space: pre-wrap; }
+        .arrow-divider { display: flex; align-items: center; justify-content: center; color: #2dd4bf; font-size: 2rem; padding: 0 1rem; }
+        .token { display: inline-block; padding: 0 2px; border-radius: 2px; transition: all 0.2s; }
+        .token-redacted { background: #991b1b; color: #fca5a5; cursor: pointer; }
+        .token-redacted:hover { background: #b91c1c; }
+    </style>
+</head>
+<body>
+
+    <!-- SLIDE 1: INTRO -->
+    <div class="slide active" id="slide1">
+        <div class="mb-4 text-teal-500 font-mono text-sm tracking-widest">INTERNAL TOOLING</div>
+        <h1>MedSecure v62</h1>
+        <p>Sichere KI-Verarbeitung für sensible Dokumente.</p>
+        <div class="mt-8 flex gap-4">
+            <span class="px-4 py-2 bg-slate-800 rounded-full text-sm border border-slate-700">🔒 Zero Knowledge</span>
+            <span class="px-4 py-2 bg-slate-800 rounded-full text-sm border border-slate-700">🤖 Gemini AI Powered</span>
+            <span class="px-4 py-2 bg-slate-800 rounded-full text-sm border border-slate-700">⚡ Client-Side</span>
+        </div>
+        
+        <div class="mt-16 pt-8 border-t border-slate-800 text-sm text-slate-500 font-mono">
+            <p style="font-size: 0.9rem; margin-bottom: 0.5rem;">Erstellt durch <strong>Laith Alshdaifat</strong></p>
+            <p style="font-size: 0.8rem; color: #64748b;">CEO von DIggAI GmbH für Dr. Christian Klaproth</p>
+        </div>
+    </div>
+
+    <!-- SLIDE 2: THE PROBLEM -->
+    <div class="slide" id="slide2">
+        <h2>Das Dilemma</h2>
+        <div class="feature-grid">
+            <div class="card">
+                <span class="icon">🚀</span>
+                <h3 class="text-xl font-bold mb-2">KI ist mächtig</h3>
+                <p class="text-base">Wir wollen Arztbriefe zusammenfassen, Daten extrahieren und Laborwerte analysieren.</p>
+            </div>
+            <div class="card" style="border-color: #ef4444;">
+                <span class="icon">🚫</span>
+                <h3 class="text-xl font-bold mb-2 text-red-400">Datenschutz</h3>
+                <p class="text-base">Patientendaten (Namen, Geburtsdaten) dürfen niemals ungeschützt an eine Cloud-KI gesendet werden.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 3: THE SOLUTION -->
+    <div class="slide" id="slide3">
+        <h2>Die Lösung: Pseudonymisierung</h2>
+        <div class="flex items-center justify-center gap-4 text-2xl font-mono bg-slate-900 p-8 rounded-xl border border-slate-700">
+            <div class="text-red-400">Max Mustermann</div>
+            <div>➡️</div>
+            <div class="text-yellow-400 p-2 border border-dashed border-yellow-600 rounded">Anonymisierung (Lokal)</div>
+            <div>➡️</div>
+            <div class="text-green-400">{{NAME_1}}</div>
+        </div>
+        <p class="mt-8">Die KI sieht nur Muster, keine Menschen. <br>Die "Rückübersetzung" passiert nur in Ihrem Browser.</p>
+    </div>
+
+    <!-- SLIDE 4: FEATURES -->
+    <div class="slide" id="slide4">
+        <h2>Ultimate Edition Features</h2>
+        <div class="feature-grid">
+            <div class="card">
+                <span class="icon">🪄</span>
+                <h3 class="text-xl font-bold text-purple-400">Magic Filter</h3>
+                <p class="text-sm">Erkennt automatisch Namen, E-Mails und Telefonnummern, die nicht im Wörterbuch stehen.</p>
+            </div>
+            <div class="card">
+                <span class="icon">📊</span>
+                <h3 class="text-xl font-bold text-green-400">Risk Meter</h3>
+                <p class="text-sm">Visualisiert sofort, wie gut ein Dokument geschwärzt ist.</p>
+            </div>
+            <div class="card">
+                <span class="icon">🏗️</span>
+                <h3 class="text-xl font-bold text-blue-400">App Factory</h3>
+                <p class="text-sm">Erstellt aus einem Workflow eine eigenständige "Mini-App" (.html) für Kollegen.</p>
+            </div>
+            <div class="card">
+                <span class="icon">📜</span>
+                <h3 class="text-xl font-bold text-yellow-400">Audit Log</h3>
+                <p class="text-sm">Lückenlose Dokumentation: Was wurde wann verschlüsselt und gesendet?</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 5: INTERACTIVE DEMO (Learning by Doing) -->
+    <div class="slide" id="slide5">
+        <div class="absolute top-10 right-10 text-teal-500 font-bold opacity-50">INTERACTIVE</div>
+        <h2>Probieren Sie es selbst</h2>
+        <p class="mb-6 text-sm">Tippen Sie einen Text ein. Die App erkennt Namen und Daten live.</p>
+        
+        <div class="demo-box">
+            <div class="demo-col border-r border-slate-700">
+                <label class="text-xs font-bold text-slate-400 mb-2 uppercase">Input (Sensible Daten)</label>
+                <textarea id="demoInput" class="demo-input" onkeyup="runMiniDemo()">Patientin Lisa Müller, geb. 12.05.1985, klagt über Fieber. Dr. House empfiehlt Ruhe.</textarea>
+                <div class="text-xs text-slate-500">✍️ Tippen Sie hier...</div>
+            </div>
+            
+            <div class="demo-col bg-slate-900/50">
+                <label class="text-xs font-bold text-green-400 mb-2 uppercase">Output (Was die KI sieht)</label>
+                <div id="demoOutput" class="demo-output"></div>
+                <div class="text-xs text-green-600 mt-2">🔒 Sicher für den Cloud-Upload</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 6: CODE INSIGHT -->
+    <div class="slide" id="slide6">
+        <h2>Unter der Haube</h2>
+        <p class="mb-4">Wie die "App Factory" funktioniert (Ausschnitt).</p>
+        <div class="text-left bg-[#282c34] p-4 rounded-lg shadow-xl w-full max-w-3xl border border-slate-700 overflow-hidden">
+            <pre><code class="language-javascript">
+// 1. Die Regex-Logik sucht Muster (z.B. Datum)
+const pats = [
+    /\\b\\d{1,2}\\.\\d{1,2}\\.(\\d{2}|\\d{4})\\b/g, // Datum
+    /\\b[A-Z][a-z]{3,}\\b/g // Einfache Namens-Heuristik
+];
+
+// 2. Ersetzung durch Platzhalter
+pats.forEach(regex => {
+    cleanText = cleanText.replace(regex, (match) => {
+        // Erstelle Mapping: {{DATA_1}} = "Lisa Müller"
+        let placeholder = `{{DATA_${counter++}}}`;
+        mapping[placeholder] = match; 
+        return placeholder;
+    });
+});
+
+// 3. Senden an Gemini (Nur Placeholder!)
+const response = await fetch(GEMINI_API, {
+    body: JSON.stringify({ prompt: cleanText })
+});
+            </code></pre>
+        </div>
+    </div>
+
+    <!-- SLIDE 7: LIVE DEMO CTA -->
+    <div class="slide" id="slide7">
+        <h1>Bereit?</h1>
+        <p>Wir wechseln nun zur echten Applikation.</p>
+        <div class="mt-8 grid grid-cols-4 gap-4 text-left opacity-75">
+            <div class="p-4 border rounded border-slate-600 bg-slate-800/50">1. Upload & Konfig</div>
+            <div class="p-4 border rounded border-slate-600 bg-slate-800/50">2. Anonymisierung</div>
+            <div class="p-4 border rounded border-slate-600 bg-slate-800/50">3. KI Auftrag</div>
+            <div class="p-4 border rounded border-slate-600 bg-slate-800/50">4. Ergebnis</div>
+        </div>
+        
+        <div class="mt-16 text-slate-600 font-mono text-xs">
+            Erstellt durch Laith Alshdaifat (CEO DIggAI GmbH) für Dr. Christian Klaproth
+        </div>
+    </div>
+
+    <!-- NAVIGATION -->
+    <button class="control-btn prev" onclick="changeSlide(-1)">⬅️ Zurück</button>
+    <button class="control-btn next" onclick="changeSlide(1)">Weiter ➡️</button>
+
+    <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.3); font-size: 12px;">
+        Drücken Sie [Pfeil Rechts] oder Buttons
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 7;
+
+        // Init Highlight.js
+        hljs.highlightAll();
+
+        function changeSlide(dir) {
+            document.getElementById(`slide${currentSlide}`).classList.remove('active');
+            currentSlide += dir;
+            if (currentSlide < 1) currentSlide = 1;
+            if (currentSlide > totalSlides) currentSlide = totalSlides;
+            document.getElementById(`slide${currentSlide}`).classList.add('active');
+            
+            // Run demo on slide 5 entry
+            if(currentSlide === 5) runMiniDemo();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') changeSlide(1);
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+        });
+
+        // Mini Demo Logic for Slide 5
+        function runMiniDemo() {
+            const input = document.getElementById('demoInput').value;
+            let output = input;
+            
+            // Simulation of the "Magic" Filter
+            // 1. Date Regex
+            output = output.replace(/\b\d{1,2}\.\d{1,2}\.(\d{2}|\d{4})\b/g, '<span class="token token-redacted" title="Datum">{{DATE_1}}</span>');
+            
+            // 2. Name Heuristic (Capitalized words followed by another capitalized word, or simple names)
+            // Just for visual demo purposes, simplistic replace
+            const names = ["Lisa", "Müller", "House", "Dr."];
+            let c = 1;
+            names.forEach(n => {
+                const re = new RegExp(`\\b${n}\\b`, 'g');
+                output = output.replace(re, `<span class="token token-redacted" title="${n}">{{NAME_${c++}}}</span>`);
+            });
+
+            document.getElementById('demoOutput').innerHTML = output;
+        }
+    </script>
+</body>
+</html>

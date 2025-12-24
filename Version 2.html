@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedSecure v62 - Ultimate Edition</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { slate: { 850: '#1e293b' } },
+                    animation: { 'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite' }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        .loader { border-top-color: #0f766e; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .word-token { cursor: pointer; padding: 2px 3px; border-radius: 3px; display: inline-block; margin: 0 1px; border: 1px solid transparent; transition: all 0.1s; }
+        .word-token:hover { background-color: #ccfbf1; border-color: #14b8a6; z-index: 10; position: relative; }
+        .dark .word-token:hover { background-color: #115e59; border-color: #2dd4bf; color: white; }
+
+        .redacted-base { font-weight: bold; border-bottom: 2px solid; cursor: help; }
+        
+        /* Categories */
+        .redacted-id { background: #fee2e2; color: #991b1b; border-color: #ef4444; }
+        .redacted-date { background: #fce7f3; color: #831843; border-color: #db2777; }
+        .redacted-magic { background: #f3e8ff; color: #6b21a8; border-color: #9333ea; }
+        .redacted-dict { background: #dbeafe; color: #1e40af; border-color: #2563eb; }
+        .redacted-manual { background: #d1fae5; color: #065f46; border-color: #10b981; }
+        
+        .search-highlight { background-color: #fef08a !important; outline: 2px solid #eab308; box-shadow: 0 0 5px #eab308; }
+        .dark .search-highlight { background-color: #854d0e !important; outline: 2px solid #fbbf24; }
+
+        .filter-active { background-color: #f0fdfa !important; border-color: #0d9488 !important; color: #0f766e !important; font-weight: bold; }
+
+        .step-circle { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.3s; }
+        .step-active { background-color: #0f766e; color: white; border: 2px solid #0f766e; }
+        .step-inactive { background-color: white; color: #94a3b8; border: 2px solid #cbd5e1; }
+        .dark .step-inactive { background-color: #1e293b; border-color: #475569; }
+        .step-line { flex-grow: 1; height: 2px; background-color: #e2e8f0; margin: 0 10px; }
+        .dark .step-line { background-color: #475569; }
+
+        .doc-card { transition: all 0.2s; }
+        .doc-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+
+        /* Risk Meter */
+        .risk-container { height: 6px; width: 100%; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+        .risk-bar { height: 100%; transition: width 0.5s ease-out; }
+        .dark .risk-container { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-teal-900 text-white p-3 shadow-lg flex-none z-20">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                MedSecure v62 <span class="text-teal-300 text-sm font-normal border-l pl-2 ml-2 border-teal-700">Ultimate Edition</span>
+            </h1>
+            <div class="flex items-center gap-4">
+                <div id="privacyStatus" class="text-xs bg-teal-800 px-2 py-1 rounded-full flex items-center gap-1">🔒 Lokal</div>
+                <button onclick="toggleDarkMode()" class="p-1 hover:bg-teal-800 rounded">🌙</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workflow Container -->
+    <main class="container mx-auto p-4 flex-grow flex flex-col overflow-hidden max-w-6xl">
+        
+        <!-- Progress Steps -->
+        <div class="flex items-center justify-between mb-6 px-4 py-2 bg-white dark:bg-slate-800 rounded-full shadow-sm">
+            <button onclick="switchStep(1)" class="flex items-center gap-2 focus:outline-none group">
+                <div id="step1-circle" class="step-circle step-active">1</div>
+                <span class="text-sm font-bold hidden sm:block">Upload & Konfig</span>
+            </button>
+            <div class="step-line"></div>
+            <button onclick="switchStep(2)" class="flex items-center gap-2 focus:outline-none group">
+                <div id="step2-circle" class="step-circle step-inactive">2</div>
+                <span class="text-sm font-bold hidden sm:block">Anonymisierung</span>
+            </button>
+            <div class="step-line"></div>
+            <button onclick="switchStep(3)" class="flex items-center gap-2 focus:outline-none group">
+                <div id="step3-circle" class="step-circle step-inactive">3</div>
+                <span class="text-sm font-bold hidden sm:block">KI Auftrag</span>
+            </button>
+            <div class="step-line"></div>
+            <button onclick="switchStep(4)" class="flex items-center gap-2 focus:outline-none group">
+                <div id="step4-circle" class="step-circle step-inactive">4</div>
+                <span class="text-sm font-bold hidden sm:block">Ergebnis & App</span>
+            </button>
+        </div>
+
+        <!-- VIEW 1: Upload & Config -->
+        <div id="view1" class="flex-grow flex flex-col lg:flex-row gap-6 h-full overflow-hidden animate-fade-in">
+            
+            <!-- Left: Dropzone -->
+            <div class="flex-1 flex flex-col gap-4 bg-white dark:bg-slate-800 rounded-lg shadow p-6 overflow-y-auto">
+                <h2 class="text-lg font-bold border-b pb-2 mb-2">1. Dateien wählen</h2>
+                <div id="dropZone" class="w-full h-48 border-4 border-dashed border-slate-300 dark:border-slate-600 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition relative">
+                    <input type="file" id="filesInput" multiple accept="application/pdf,image/*" class="absolute inset-0 opacity-0 cursor-pointer">
+                    <div class="text-4xl mb-2">📂</div>
+                    <h3 class="font-bold text-slate-700 dark:text-slate-300">Drag & Drop</h3>
+                    <p class="text-xs text-slate-500">PDF, JPG, PNG</p>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" id="enhanceImage" class="w-4 h-4 text-teal-600 rounded" checked>
+                    <label for="enhanceImage" class="text-xs font-medium cursor-pointer">OCR Bildverbesserung (Langsam)</label>
+                </div>
+
+                <div id="fileListPreview" class="w-full flex-grow mt-2 space-y-2 overflow-y-auto min-h-[100px]"></div>
+            </div>
+
+            <!-- Right: Dictionary & Password -->
+            <div class="flex-1 flex flex-col gap-4 bg-white dark:bg-slate-800 rounded-lg shadow p-6 overflow-y-auto">
+                <h2 class="text-lg font-bold border-b pb-2 mb-2">2. Konfiguration (Wörterbuch)</h2>
+                
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold uppercase text-slate-500">Trigger-Profil laden</label>
+                        <select id="dictProfile" onchange="loadProfile()" class="text-xs p-1 border rounded dark:bg-slate-900">
+                            <option value="med">Medizin (Standard)</option>
+                            <option value="lab">Laborbericht</option>
+                            <option value="rad">Radiologie</option>
+                            <option value="psych">Psychotherapie</option>
+                            <option value="hr">Personalwesen</option>
+                            <option value="empty">Leer</option>
+                        </select>
+                    </div>
+                    <textarea id="dictionaryInput" class="w-full h-32 p-2 border rounded text-xs font-mono shadow-inner dark:bg-slate-900 dark:border-slate-600" placeholder="Wörter hier kommagetrennt eingeben..."></textarea>
+                    <p class="text-[10px] text-slate-400 mt-1">Diese Begriffe werden automatisch im Text gesucht und geschwärzt.</p>
+                </div>
+
+                <div class="mt-auto">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sicherheits-Passwort</label>
+                    <div class="flex gap-2 relative">
+                        <input type="password" id="globalPassword" placeholder="Passwort..." class="flex-grow p-2 pr-10 border rounded dark:bg-slate-900 dark:border-slate-600">
+                        <button onclick="togglePasswordVisibility('globalPassword')" class="absolute right-12 top-2 text-gray-400" title="Show">👁️</button>
+                        <button onclick="generatePassword()" class="bg-gray-200 dark:bg-slate-700 px-3 rounded" title="Gen">🎲</button>
+                    </div>
+                    <div class="h-1 bg-gray-200 mt-1 rounded"><div id="pwdStrength" class="h-full w-0 transition-all bg-red-500"></div></div>
+                </div>
+
+                <button onclick="processFiles()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded shadow-lg transition transform hover:scale-105 mt-4">
+                    Starten & Analysieren ➡️
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW 2: Anonymization Editor -->
+        <div id="view2" class="hidden flex-grow flex-col h-full overflow-hidden">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-2 bg-white dark:bg-slate-800 p-2 rounded shadow gap-2">
+                <div class="flex gap-2 items-center flex-wrap">
+                    <span class="text-sm font-bold px-2 py-1 bg-yellow-100 text-yellow-800 rounded">Filter:</span>
+                    <button onclick="toggleFilter('DATE')" id="btnFilterDATE" class="text-xs px-2 py-1 border rounded hover:bg-pink-50 text-pink-700 border-pink-200 transition">📅 Datum</button>
+                    <button onclick="toggleFilter('ID')" id="btnFilterID" class="text-xs px-2 py-1 border rounded hover:bg-red-50 text-red-700 border-red-200 transition">🆔 IDs</button>
+                    <button onclick="toggleFilter('MAGIC')" id="btnFilterMAGIC" class="text-xs px-2 py-1 border rounded hover:bg-purple-50 text-purple-700 border-purple-200 transition font-bold" title="Auto-Erkennung von Namen/Emails">🪄 Magic</button>
+                </div>
+                
+                <div class="flex gap-1 flex-grow max-w-md">
+                    <input type="text" id="editorSearch" onkeyup="highlightSearch()" placeholder="Suchen & Schwärzen..." class="flex-grow p-1 px-2 text-sm border rounded dark:bg-slate-900 dark:border-slate-600">
+                    <button onclick="redactAllMatches()" class="bg-red-100 text-red-700 px-2 rounded text-xs font-bold hover:bg-red-200 border border-red-200">Alle</button>
+                </div>
+
+                <button onclick="switchStep(3)" class="bg-teal-600 text-white text-sm font-bold px-4 py-2 rounded shadow hover:bg-teal-700">Weiter zu KI ➡️</button>
+            </div>
+
+            <div id="editorsContainer" class="flex-grow overflow-y-auto space-y-4 p-1"></div>
+        </div>
+
+        <!-- VIEW 3: AI Prompt -->
+        <div id="view3" class="hidden flex-grow flex-col items-center justify-center h-full">
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg w-full max-w-3xl flex flex-col gap-4">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <span>🤖</span> Was soll die KI tun?
+                </h2>
+                
+                <div class="bg-indigo-50 dark:bg-slate-900 p-3 rounded border border-indigo-100 dark:border-slate-700 text-sm">
+                    <p class="font-bold text-indigo-800 dark:text-indigo-400">Kontext:</p>
+                    <p id="contextSummary" class="italic text-slate-600 dark:text-slate-400">0 Dokumente.</p>
+                </div>
+
+                <label class="text-xs font-bold uppercase text-slate-500">System Prompt / Aufgabe</label>
+                <textarea id="aiPromptInput" class="w-full h-32 p-3 border rounded font-mono text-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Z.B.: Erstelle eine Zusammenfassung aller Befunde. Extrahiere alle Medikamente als Liste."></textarea>
+                
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="setPrompt('Zusammenfassen')" class="text-xs bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded hover:bg-gray-200">📝 Zusammenfassen</button>
+                    <button onclick="setPrompt('Medikamentenplan erstellen')" class="text-xs bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded hover:bg-gray-200">💊 Med-Plan</button>
+                    <button onclick="setPrompt('Analyse auf Wechselwirkungen')" class="text-xs bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded hover:bg-gray-200">⚠️ Wechselwirkungen</button>
+                </div>
+
+                <div class="border-t pt-4 flex justify-between items-center">
+                    <div class="text-xs text-orange-600 font-bold flex items-center gap-1">
+                        ⚠️ Daten werden an Google Gemini gesendet (Pseudonymisiert)
+                    </div>
+                    <button onclick="runAI()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded shadow-lg flex items-center gap-2">
+                        <span>✨</span> Ausführen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 4: Result & Restore & Export -->
+        <div id="view4" class="hidden flex-grow flex-col h-full overflow-hidden gap-4">
+            <!-- Top Bar -->
+            <div class="bg-white dark:bg-slate-800 p-3 rounded shadow flex flex-wrap justify-between items-center gap-2 flex-none">
+                <h2 class="font-bold text-lg">Ergebnis</h2>
+                <div class="flex gap-2">
+                    <button onclick="exportResult('txt')" class="bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded text-sm hover:bg-gray-200">📄 TXT</button>
+                    <button onclick="exportResult('pdf')" class="bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded text-sm hover:bg-gray-200">📕 PDF</button>
+                    <button onclick="copyResult()" class="bg-teal-100 text-teal-800 px-3 py-1 rounded text-sm font-bold hover:bg-teal-200">📋 Copy</button>
+                </div>
+            </div>
+
+            <div class="flex-grow flex flex-col md:flex-row gap-4 overflow-hidden">
+                <!-- Result Area -->
+                <div class="flex-1 flex flex-col relative">
+                    <textarea id="finalOutput" class="w-full h-full p-4 border rounded bg-white dark:bg-slate-900 dark:border-slate-700 font-mono text-sm resize-none" readonly></textarea>
+                    
+                    <!-- Decrypt Overlay -->
+                    <div id="decryptOverlay" class="absolute inset-0 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur flex flex-col items-center justify-center z-10 hidden">
+                        <p class="mb-4 font-bold text-slate-700 dark:text-slate-300">🔐 Session abgelaufen</p>
+                        <input type="password" id="reentryPassword" placeholder="Passwort eingeben" class="p-2 border rounded mb-2 w-48 dark:bg-slate-800">
+                        <button onclick="manualDecrypt()" class="bg-teal-600 text-white px-4 py-2 rounded font-bold">Entschlüsseln</button>
+                    </div>
+                </div>
+
+                <!-- App Factory Sidebar -->
+                <div class="w-full md:w-80 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-slate-800 p-4 rounded border border-indigo-100 dark:border-slate-600 flex-none flex flex-col gap-3">
+                    <h3 class="font-bold text-indigo-800 dark:text-indigo-400 border-b pb-2 flex items-center gap-2">
+                        <span>🏗️</span> KI App Erstellen
+                    </h3>
+                    <p class="text-xs text-slate-600 dark:text-slate-400">
+                        Exportiert eine eigenständige HTML-App.
+                        <br>✅ Prompt eingebaut
+                        <br>✅ Key eingebaut
+                        <br>✅ <strong>Wörterbuch integriert</strong>
+                    </p>
+                    
+                    <div>
+                        <label class="text-xs font-bold">App Name</label>
+                        <input type="text" id="appName" class="w-full p-1 border rounded text-sm dark:bg-slate-900" placeholder="z.B. Labor-Checker">
+                    </div>
+
+                    <div class="bg-yellow-50 p-2 rounded border border-yellow-200 text-[10px] text-yellow-800">
+                        WARNUNG: Die exportierte Datei enthält deinen persönlichen API Key. Gib sie nicht an Dritte weiter!
+                    </div>
+
+                    <button onclick="generateMicroApp()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded shadow mt-auto flex items-center justify-center gap-2">
+                        <span>📦</span> Als .HTML exportieren
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loader" class="hidden fixed inset-0 bg-white/80 dark:bg-slate-900/80 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+            <div class="loader h-12 w-12 rounded-full border-4 border-t-teal-600 mb-4"></div>
+            <p id="loaderText" class="font-bold text-teal-800 dark:text-teal-400 animate-pulse">Verarbeite...</p>
+        </div>
+        
+        <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    </main>
+
+    <script>
+        // --- GLOBAL CONFIG ---
+        const HARDCODED_KEY = "AIzaSyCdVZYK3Zm1S6-rbvib7qhbJYQaleYFPbc";
+
+        // --- STATE MANAGEMENT ---
+        let appState = {
+            documents: [], 
+            activeFilters: { DATE: false, ID: false, MAGIC: false },
+            currentStep: 1,
+            password: null,
+            passwordTimestamp: 0,
+            aiResultRaw: "", 
+            lastPrompt: "",
+            dictionary: new Set()
+        };
+
+        const PROFILES = {
+            'med': "Nachname, Vorname, Patient, Geburtsdatum, Adresse, Telefon, Versichertennummer, Arzt, Diagnose, Befund, Medikament",
+            'lab': "Proben-ID, Labor-Nr, Entnahme, Leukozyten, Erythrozyten, Glucose, Kreatinin, Parameter, Referenzbereich",
+            'rad': "Untersuchung, MRT, CT, Röntgen, Befund, Beurteilung, Radiologe",
+            'hr': "Personalnummer, Mitarbeiter, Gehalt, Lohn, Steuerklasse, Sozialversicherungsnummer",
+            'empty': ""
+        };
+
+        const REGEX_PATTERNS = {
+            DATE: /\b\d{1,2}\.\d{1,2}\.(\d{2}|\d{4})\b/g,
+            ID: /\b\d{5,}\b/g,
+            EMAIL: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+            PHONE: /(?:\+49|0)[1-9][0-9 \-\/]{5,}\d/g
+        };
+
+        // --- INIT ---
+        window.onload = () => {
+            if(localStorage.getItem('medSecure_dark')==='true') document.documentElement.classList.add('dark');
+            loadProfile(); // Init Dictionary
+            
+            const fileInput = document.getElementById('filesInput');
+            if(fileInput) fileInput.addEventListener('change', handleFileSelect);
+            
+            // Drag & Drop
+            const dz = document.getElementById('dropZone');
+            if(dz) {
+                dz.ondragover = e => { e.preventDefault(); dz.classList.add('bg-slate-100', 'dark:bg-slate-700'); };
+                dz.ondragleave = e => { dz.classList.remove('bg-slate-100', 'dark:bg-slate-700'); };
+                dz.ondrop = e => { 
+                    e.preventDefault(); 
+                    dz.classList.remove('bg-slate-100', 'dark:bg-slate-700'); 
+                    handleFiles(e.dataTransfer.files); 
+                };
+            }
+
+            document.addEventListener('mousemove', resetTimer);
+            document.addEventListener('keypress', resetTimer);
+        };
+
+        function loadProfile() {
+            const val = document.getElementById('dictProfile').value;
+            const ta = document.getElementById('dictionaryInput');
+            if(PROFILES[val] !== undefined) ta.value = PROFILES[val];
+        }
+
+        // --- STEP 1: UPLOAD ---
+        function handleFileSelect(e) { handleFiles(e.target.files); }
+        
+        function handleFiles(fileList) {
+            const preview = document.getElementById('fileListPreview');
+            // Allow appending logic in future, for now replace
+            if(appState.documents.length === 0) preview.innerHTML = "";
+            
+            if (fileList.length === 0) return;
+
+            Array.from(fileList).forEach((f) => {
+                // Quality Check for images
+                if(f.type.includes('image')) {
+                    checkImageQuality(f);
+                }
+
+                const docId = appState.documents.length;
+                appState.documents.push({
+                    id: docId,
+                    file: f,
+                    name: f.name,
+                    rawText: "",
+                    cleanText: "",
+                    mapping: {}
+                });
+                
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between bg-slate-50 dark:bg-slate-900 p-2 rounded border text-sm animate-pop";
+                div.innerHTML = `<span>📄 ${f.name}</span> <span class="text-xs text-slate-500">${(f.size/1024).toFixed(1)} KB</span>`;
+                preview.appendChild(div);
+            });
+            showToast(`${fileList.length} Dateien geladen`, "success");
+        }
+
+        function checkImageQuality(file) {
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = () => {
+                if(img.width < 1000 || img.height < 1000) {
+                    showToast(`⚠️ ${file.name} hat eine niedrige Auflösung. OCR könnte ungenau sein.`, "error");
+                }
+            }
+        }
+
+        function generatePassword() {
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789!#%&";
+            let pwd = "";
+            for(let i=0;i<12;i++) pwd += chars.charAt(Math.floor(Math.random()*chars.length));
+            document.getElementById('globalPassword').value = pwd;
+            checkPwdStrength(pwd);
+            showToast("Passwort generiert");
+        }
+
+        function togglePasswordVisibility(id) {
+            const el = document.getElementById(id);
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
+
+        function checkPwdStrength(p) {
+            const bar = document.getElementById('pwdStrength');
+            if(p && p.length > 8) { bar.style.width = "100%"; bar.className="h-full bg-green-500 transition-all"; }
+            else { bar.style.width = "30%"; bar.className="h-full bg-red-500 transition-all"; }
+        }
+
+        // --- CORE PROCESS ---
+        async function processFiles() {
+            const pwd = document.getElementById('globalPassword').value;
+            const enhanced = document.getElementById('enhanceImage').checked;
+            
+            // Init Dictionary Set
+            const dictRaw = document.getElementById('dictionaryInput').value;
+            appState.dictionary = new Set(dictRaw.split(',').map(s => s.trim()).filter(s => s.length > 1));
+
+            if(!appState.documents.length) return showToast("Bitte zuerst Dateien hochladen", "error");
+            if(!pwd || pwd.length < 4) return showToast("Passwort fehlt (min 4 Zeichen)", "error");
+
+            appState.password = pwd;
+            appState.passwordTimestamp = Date.now();
+            setLoader(true, "Lese & Anonymisiere...");
+
+            try {
+                for(let doc of appState.documents) {
+                    if(doc.file.type === "application/pdf") {
+                        doc.rawText = await extractPDF(doc.file);
+                    } else {
+                        if (enhanced) doc.rawText = await extractTextFromImageEnhanced(doc.file);
+                        else doc.rawText = await extractTextFromImage(doc.file);
+                    }
+                    // Run anonymization pipeline
+                    runAnonymizationOnDoc(doc);
+                }
+                
+                renderEditors();
+                switchStep(2);
+                showToast("Analyse abgeschlossen", "success");
+            } catch(e) {
+                console.error(e);
+                showToast("Fehler: " + e.message, "error");
+            } finally {
+                setLoader(false);
+            }
+        }
+
+        function runAnonymizationOnDoc(doc) {
+            let text = doc.rawText;
+            let mapping = {};
+            let counter = 1;
+
+            const addMapping = (original, type) => {
+                if(!original || original.length < 2) return;
+                for(let k in mapping) if(mapping[k] === original) return; 
+
+                const ph = `{{${type}_${counter++}}}`;
+                mapping[ph] = original;
+                text = text.split(original).join(ph);
+            };
+
+            // 1. Dictionary (Priority)
+            appState.dictionary.forEach(term => {
+                const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                const matches = text.match(regex) || [];
+                matches.forEach(m => addMapping(m, 'DICT'));
+            });
+
+            // 2. Patterns (Regex)
+            if(appState.activeFilters.DATE) (text.match(REGEX_PATTERNS.DATE)||[]).forEach(m => addMapping(m, 'DATE'));
+            if(appState.activeFilters.ID) (text.match(REGEX_PATTERNS.ID)||[]).forEach(m => addMapping(m, 'ID'));
+
+            // 3. Magic (Heuristics)
+            if(appState.activeFilters.MAGIC) {
+                (text.match(REGEX_PATTERNS.EMAIL)||[]).forEach(m => addMapping(m, 'MAGIC'));
+                (text.match(REGEX_PATTERNS.PHONE)||[]).forEach(m => addMapping(m, 'MAGIC'));
+                const words = text.split(/\s+/);
+                words.forEach(w => {
+                    const cleanW = w.replace(/[.,:;()]/g, "");
+                    if(/^[A-Z][a-z]{3,}$/.test(cleanW)) {
+                        if(!["Und","Oder","Aber","Denn","Doch","Dass","Wenn","Dann","Eine","Einer","Diese","Dieser"].includes(cleanW)) {
+                             addMapping(cleanW, 'MAGIC');
+                        }
+                    }
+                });
+            }
+
+            doc.cleanText = text;
+            doc.mapping = mapping;
+        }
+
+        async function extractPDF(file) {
+            const ab = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(ab).promise;
+            let text = "";
+            for(let i=1; i<=pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                text += content.items.map(item => item.str).join(" ") + "\n";
+            }
+            return text;
+        }
+
+        async function extractTextFromImage(f) { 
+            const w=await Tesseract.createWorker('deu');
+            const r=await w.recognize(f);
+            await w.terminate();
+            return r.data.text; 
+        }
+
+        async function extractTextFromImageEnhanced(f) { 
+            return new Promise(r=>{
+                const rd=new FileReader();
+                rd.onload=e=>{
+                    const i=new Image();
+                    i.onload=async()=>{
+                        const c=document.createElement('canvas');
+                        const x=c.getContext('2d');
+                        c.width=i.width; c.height=i.height;
+                        x.drawImage(i,0,0);
+                        const d=x.getImageData(0,0,c.width,c.height);
+                        const p=d.data;
+                        for(let j=0;j<p.length;j+=4){
+                            let a=(p[j]+p[j+1]+p[j+2])/3;
+                            let v=a>128?255:0; 
+                            p[j]=p[j+1]=p[j+2]=v;
+                        }
+                        x.putImageData(d,0,0);
+                        const w=await Tesseract.createWorker('deu');
+                        const rt=await w.recognize(c.toDataURL('image/jpeg'));
+                        await w.terminate();
+                        r(rt.data.text);
+                    };
+                    i.src=e.target.result;
+                };
+                rd.readAsDataURL(f);
+            }); 
+        }
+
+        // --- STEP 2: EDITOR & FILTERS ---
+        function toggleFilter(type) {
+            appState.activeFilters[type] = !appState.activeFilters[type];
+            const btn = document.getElementById('btnFilter'+type);
+            if(appState.activeFilters[type]) btn.classList.add('filter-active');
+            else btn.classList.remove('filter-active');
+            appState.documents.forEach(doc => runAnonymizationOnDoc(doc));
+            renderEditors();
+            showToast(type + " Filter " + (appState.activeFilters[type]?"An":"Aus"));
+        }
+
+        function renderEditors() {
+            const c = document.getElementById('editorsContainer');
+            c.innerHTML = "";
+            const searchVal = document.getElementById('editorSearch')?.value.toLowerCase();
+            
+            appState.documents.forEach(doc => {
+                const card = document.createElement('div');
+                card.className = "bg-white dark:bg-slate-800 p-4 rounded shadow border border-slate-200 dark:border-slate-700 doc-card";
+                
+                let htmlPreview = "";
+                let tokenCount = 0;
+                let redactedCount = 0;
+
+                // Better split that keeps punctuation mostly separate but attached for flow
+                // We'll use a split that captures delimiters
+                doc.cleanText.split(/(\s+|[.,;:\-\/()\[\]])/).forEach(part => {
+                    if(part.match(/^\s+$/)) { 
+                        htmlPreview += part; return; 
+                    }
+                    
+                    tokenCount++;
+                    let isMapped = false;
+                    let displayClass = "word-token";
+                    
+                    if (searchVal && part.toLowerCase().includes(searchVal) && part.trim().length > 0) {
+                        displayClass += " search-highlight";
+                    }
+
+                    if (part.startsWith('{{') && part.endsWith('}}')) {
+                        redactedCount++;
+                        let cls = 'redacted-base ';
+                        if (part.includes('ID')) cls += 'redacted-id';
+                        else if (part.includes('DATE')) cls += 'redacted-date';
+                        else if (part.includes('MAGIC')) cls += 'redacted-magic';
+                        else if (part.includes('DICT')) cls += 'redacted-dict';
+                        else cls += 'redacted-manual';
+                        
+                        const original = doc.mapping[part] || "?";
+                        htmlPreview += `<span class="word-token ${cls}" title="Original: ${original}" onclick="restoreToken('${doc.id}', '${part}')">${part}</span>`;
+                        isMapped = true;
+                    }
+
+                    if(!isMapped) {
+                        htmlPreview += `<span class="${displayClass}" onclick="redactToken('${doc.id}', this)">${part}</span>`;
+                    }
+                });
+
+                // Risk Meter Logic
+                const ratio = tokenCount > 0 ? (redactedCount / tokenCount) * 100 : 0;
+                const riskColor = ratio > 20 ? 'bg-red-500' : (ratio > 5 ? 'bg-yellow-500' : 'bg-green-500'); // Inverse logic: High redaction = Safe? No, High redaction means SAFE document. Low redaction means RISK. 
+                // Actually: More redacted = Safer. 
+                // Let's visualize "Safety Level". 0% redacted = 0% Safety (Red). 100% Redacted = 100% Safety (Green).
+                const safeColor = ratio > 15 ? 'bg-green-500' : (ratio > 5 ? 'bg-yellow-500' : 'bg-red-500');
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-2 border-b pb-1">
+                        <h3 class="font-bold text-xs text-slate-500 uppercase">${doc.name}</h3>
+                        <div class="flex flex-col items-end w-32">
+                            <span class="text-[9px] text-slate-400">Datenschutz-Score: ${Math.round(ratio)}%</span>
+                            <div class="risk-container"><div class="risk-bar ${safeColor}" style="width: ${Math.min(ratio * 3, 100)}%"></div></div>
+                        </div>
+                    </div>
+                    <div class="font-mono text-sm h-48 overflow-y-auto leading-relaxed whitespace-pre-wrap">${htmlPreview}</div>
+                `;
+                c.appendChild(card);
+            });
+        }
+
+        function redactToken(docId, el) {
+            const word = el.innerText.trim();
+            if(word.length < 1) return;
+            const doc = appState.documents.find(d => d.id == docId);
+            const ph = `{{MANUAL_${Math.floor(Math.random()*10000)}}}`;
+            doc.mapping[ph] = word;
+            doc.cleanText = doc.cleanText.split(word).join(ph);
+            renderEditors();
+        }
+
+        function restoreToken(docId, ph) {
+            const doc = appState.documents.find(d => d.id == docId);
+            const original = doc.mapping[ph];
+            if(original) {
+                delete doc.mapping[ph];
+                doc.cleanText = doc.cleanText.replace(ph, original);
+                renderEditors();
+            }
+        }
+
+        function highlightSearch() { renderEditors(); }
+
+        function redactAllMatches() {
+            const val = document.getElementById('editorSearch').value.trim();
+            if(!val) return;
+            appState.dictionary.add(val);
+            appState.documents.forEach(doc => runAnonymizationOnDoc(doc));
+            renderEditors();
+            showToast(`"${val}" zum Wörterbuch hinzugefügt & geschwärzt.`, "success");
+            document.getElementById('editorSearch').value = "";
+        }
+
+        // --- STEP 3: AI ---
+        function setPrompt(txt) { document.getElementById('aiPromptInput').value = txt; }
+
+        async function runAI() {
+            const prompt = document.getElementById('aiPromptInput').value;
+            appState.lastPrompt = prompt;
+            let fullContext = "";
+            appState.documents.forEach((d, i) => fullContext += `--- DOKUMENT ${i+1} (${d.name}) ---\n${d.cleanText}\n\n`);
+
+            setLoader(true, "Sende an Gemini (Cloud)...");
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${HARDCODED_KEY}`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `SYSTEM: Du bist ein medizinischer Assistent. Der Text ist pseudonymisiert. Ändere KEINE Platzhalter ({{...}}). \n\nKONTEXT:\n${fullContext}\n\nAUFGABE: ${prompt}` }] }] })
+                });
+                const data = await response.json();
+                appState.aiResultRaw = data.candidates?.[0]?.content?.parts?.[0]?.text || "Fehler: Keine Antwort.";
+                processResultDisplay();
+                switchStep(4);
+                showToast("Antwort erhalten!", "success");
+            } catch(e) { showToast("API Fehler: " + e.message, "error"); } finally { setLoader(false); }
+        }
+
+        // --- STEP 4: RESTORE ---
+        function processResultDisplay() {
+            const now = Date.now();
+            const isSafe = (now - appState.passwordTimestamp) < (3 * 60 * 1000); 
+            if(isSafe && appState.password) {
+                decryptAndShow();
+                document.getElementById('decryptOverlay').classList.add('hidden');
+            } else {
+                document.getElementById('finalOutput').value = "--- INHALT VERSCHLÜSSELT ---";
+                document.getElementById('decryptOverlay').classList.remove('hidden');
+                appState.password = null;
+            }
+        }
+
+        function manualDecrypt() {
+            decryptAndShow();
+            document.getElementById('decryptOverlay').classList.add('hidden');
+        }
+
+        function decryptAndShow() {
+            let text = appState.aiResultRaw;
+            appState.documents.forEach(doc => {
+                Object.keys(doc.mapping).sort((a,b) => b.length - a.length).forEach(ph => {
+                    text = text.split(ph).join(doc.mapping[ph]);
+                });
+            });
+            document.getElementById('finalOutput').value = text;
+        }
+
+        function copyResult() { navigator.clipboard.writeText(document.getElementById('finalOutput').value).then(()=>showToast("Kopiert!")); }
+        function exportResult(type) {
+            const t = document.getElementById('finalOutput').value;
+            if(type==='txt') { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([t],{type:'text/plain'})); a.download="Resultat.txt"; a.click(); }
+            else { const {jsPDF}=window.jspdf; const doc=new jsPDF(); doc.setFontSize(10); doc.splitTextToSize(t,180).forEach((l,i)=>{if(10+i*5>280)doc.addPage();doc.text(l,10,10+(i%55)*5)}); doc.save("Resultat.pdf"); }
+        }
+
+        // --- APP FACTORY ---
+        function generateMicroApp() {
+            const appName = document.getElementById('appName').value || "MedSecure_App";
+            const safePrompt = JSON.stringify(appState.lastPrompt || ""); 
+            const dictArray = JSON.stringify(Array.from(appState.dictionary)); 
+            
+            const parts = [
+                '<!DOCTYPE html>',
+                '<html lang="de">',
+                '<head>',
+                '<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">',
+                '<title>' + appName.replace(/</g, '&lt;') + '</title>',
+                '<script src="https://cdn.tailwindcss.com"><\/script>',
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"><\/script>',
+                '<script>pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";<\/script>',
+                '<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"><\/script>',
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>',
+                '<style>.loader{border-top-color:#0f766e;animation:s 1s linear infinite}@keyframes s{to{transform:rotate(360deg)}} .log-entry { font-family: monospace; font-size: 10px; border-bottom: 1px solid #eee; padding: 2px; }</style>',
+                '</head>',
+                '<body class="bg-slate-50 text-slate-800 h-screen flex flex-col items-center justify-center p-4">',
+                '<div class="bg-white p-8 rounded-xl shadow-xl w-full max-w-2xl border-t-4 border-indigo-600 flex flex-col gap-4">',
+                '<h1 class="text-2xl font-bold mb-2 flex items-center gap-2">🚀 ' + appName.replace(/</g, '&lt;') + '</h1>',
+                
+                '<div class="text-xs bg-gray-100 p-2 rounded">',
+                '<label class="font-bold">Eigenes Wörterbuch (zusätzlich):</label>',
+                '<input type="text" id="userDict" class="w-full border p-1 rounded mt-1" placeholder="Wort1, Wort2...">',
+                '</div>',
+
+                '<div id="drop" class="border-4 border-dashed border-gray-200 rounded-lg h-32 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition">',
+                '<span class="text-2xl">📄</span>',
+                '<span class="font-bold text-gray-400">Datei hier ablegen</span>',
+                '<input type="file" id="f" class="hidden">',
+                '</div>',
+                
+                '<div id="status" class="hidden bg-blue-50 text-blue-800 p-3 rounded text-sm font-mono flex items-center gap-2">',
+                '<div class="loader h-4 w-4 border-2 rounded-full"></div> <span id="st-txt">Verarbeite...</span>',
+                '</div>',
+
+                '<div id="auditLog" class="hidden h-24 overflow-y-auto bg-gray-100 p-2 rounded border border-gray-300"></div>',
+
+                '<div id="resultArea" class="hidden flex flex-col gap-2">',
+                '<label class="font-bold text-xs uppercase">Ergebnis:</label>',
+                '<textarea id="res" class="w-full h-48 border p-3 rounded bg-slate-50 font-mono text-sm" readonly></textarea>',
+                '<button onclick="downloadAudit()" class="bg-gray-700 text-white text-xs py-2 rounded">📜 Audit Log Speichern</button>',
+                '</div>',
+                '</div>',
+                
+                '<script>',
+                'const FIXED_PROMPT = ' + safePrompt + ';',
+                'const BASE_DICT = new Set(' + dictArray + ');',
+                'const API_KEY = "' + HARDCODED_KEY + '";',
+                'const logs = [];',
+                'const dz=document.getElementById("drop"), inp=document.getElementById("f");',
+                'dz.onclick=()=>inp.click();',
+                'dz.ondragover=e=>{e.preventDefault();dz.classList.add("bg-blue-50")};',
+                'dz.ondragleave=()=>dz.classList.remove("bg-blue-50");',
+                'dz.ondrop=e=>{e.preventDefault();handle(e.dataTransfer.files[0])};',
+                'inp.onchange=e=>handle(e.target.files[0]);',
+                
+                'function log(msg) {',
+                '   const ts = new Date().toLocaleTimeString();',
+                '   logs.push(`[${ts}] ${msg}`);',
+                '   const el = document.createElement("div"); el.className="log-entry"; el.innerText = `[${ts}] ${msg}`;',
+                '   document.getElementById("auditLog").appendChild(el);',
+                '}',
+
+                'async function handle(file){',
+                '   const userWords = document.getElementById("userDict").value.split(",").map(w=>w.trim()).filter(w=>w.length>1);',
+                '   userWords.forEach(w => BASE_DICT.add(w));',
+                '   document.getElementById("status").classList.remove("hidden");',
+                '   document.getElementById("auditLog").classList.remove("hidden");',
+                '   document.getElementById("resultArea").classList.add("hidden");',
+                '   log("Start: Datei empfangen - " + file.name);',
+                '   try {',
+                '       update("Lese Text...");',
+                '       let txt = "";',
+                '       if(file.type.includes("pdf")) {',
+                '           const ab = await file.arrayBuffer();',
+                '           const pdf = await pdfjsLib.getDocument(ab).promise;',
+                '           for(let i=1;i<=pdf.numPages;i++) txt += (await (await pdf.getPage(i)).getTextContent()).items.map(x=>x.str).join(" ");',
+                '       } else {',
+                '           const w=await Tesseract.createWorker("deu");',
+                '           const ret=await w.recognize(file);',
+                '           await w.terminate();',
+                '           txt = ret.data.text;',
+                '       }',
+                '       log("Text extrahiert. Starte Anonymisierung mit " + BASE_DICT.size + " Wörtern.");',
+                '       update("Anonymisiere...");',
+                '       let map = {}, clean = txt, c = 1;',
+                '       // Apply Dictionary',
+                '       BASE_DICT.forEach(term => {',
+                '           const regex = new RegExp(term.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&"), "gi");',
+                '           clean = clean.replace(regex, (m) => { if(!Object.values(map).includes(m)) { let ph="{{DICT_"+(c++)+"}}"; map[ph]=m; return ph; } return m; });',
+                '       });',
+                '       // Apply Regex (Date/ID)',
+                '       const pats = [/\\b\\d{1,2}\\.\\d{1,2}\\.(\\d{2}|\\d{4})\\b/g, /\\b\\d{5,}\\b/g];',
+                '       pats.forEach(r => clean = clean.replace(r, (m) => { if(!Object.values(map).includes(m)) { let ph="{{DATA_"+(c++)+"}}"; map[ph]=m; return ph; } return m; }));',
+                '       log("Daten geschwärzt: " + Object.keys(map).length + " Einträge.");',
+                '       update("Frage KI...");',
+                '       const resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key="+API_KEY, {',
+                '           method:"POST", headers:{"Content-Type":"application/json"},',
+                '           body: JSON.stringify({ contents: [{ parts: [{ text: "SYSTEM: Pseudonymisierter Text. Ändere keine Platzhalter. TEXT: "+clean+" AUFGABE: "+FIXED_PROMPT }] }] })',
+                '       });',
+                '       const json = await resp.json();',
+                '       let res = json.candidates[0].content.parts[0].text;',
+                '       log("Antwort erhalten. Starte Entschlüsselung.");',
+                '       update("Entschlüssele...");',
+                '       Object.keys(map).sort((a,b)=>b.length-a.length).forEach(k => res = res.split(k).join(map[k]));',
+                '       document.getElementById("status").classList.add("hidden");',
+                '       document.getElementById("res").value = res;',
+                '       document.getElementById("resultArea").classList.remove("hidden");',
+                '       log("Fertig.");',
+                '   } catch(e) { alert("Fehler: "+e.message); log("ERR: "+e.message); document.getElementById("status").classList.add("hidden"); }',
+                '}',
+                'function update(t){document.getElementById("st-txt").innerText=t;}',
+                'function downloadAudit() {',
+                '   const { jsPDF } = window.jspdf;',
+                '   const doc = new jsPDF();',
+                '   doc.text("Audit Log", 10, 10);',
+                '   let y = 20;',
+                '   logs.forEach(l => { doc.text(l, 10, y); y+=10; });',
+                '   doc.save("Audit_Log.pdf");',
+                '}',
+                '<\/script>',
+                '</body>',
+                '</html>'
+            ];
+
+            const blob = new Blob([parts.join('\n')], {type: 'text/html'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${appName.replace(/\s+/g,'_')}.html`;
+            a.click();
+            showToast("App generiert (Wörterbuch integriert)!", "success");
+        }
+
+        // --- UTILS ---
+        function switchStep(n) {
+            if(n > 1 && !appState.documents.length) return showToast("Erst Dateien hochladen", "error");
+            [1,2,3,4].forEach(i => {
+                document.getElementById(`view${i}`).classList.add('hidden');
+                document.getElementById(`step${i}-circle`).classList.replace('step-active', 'step-inactive');
+            });
+            document.getElementById(`view${n}`).classList.remove('hidden');
+            document.getElementById(`view${n}`).classList.add('flex');
+            document.getElementById(`step${n}-circle`).classList.replace('step-inactive', 'step-active');
+            appState.currentStep = n;
+        }
+
+        function setLoader(state, txt="Lade...") {
+            const l = document.getElementById('loader');
+            if(state) { l.classList.remove('hidden'); document.getElementById('loaderText').innerText=txt; }
+            else l.classList.add('hidden');
+        }
+
+        function showToast(msg, type='info') {
+            const c = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = `px-4 py-2 rounded shadow text-white text-sm font-bold animate-pulse ${type==='error'?'bg-red-600':'bg-teal-600'}`;
+            t.innerText = msg;
+            c.appendChild(t);
+            setTimeout(()=>t.remove(), 3000);
+        }
+
+        function toggleDarkMode() { document.documentElement.classList.toggle('dark'); localStorage.setItem('medSecure_dark', document.documentElement.classList.contains('dark')); }
+        function openSettings() { document.getElementById('settingsOverlay').classList.remove('hidden'); }
+        function saveSettings() { document.getElementById('settingsOverlay').classList.add('hidden'); }
+        function resetTimer() { if(appState.currentStep === 4 && appState.password) { } }
+    </script>
+</body>
+</html>
