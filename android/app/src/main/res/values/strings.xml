@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Anonymisator</string>
+    <string name="api_url_hint">Enter API URL (e.g., http://10.0.2.2:8000)</string>
+    <string name="practice_id_hint">Practice ID</string>
+    <string name="task_hint">Task (e.g., summarize, analyze)</string>
+    <string name="input_text_hint">Enter medical text to anonymize...</string>
+    <string name="submit_button">Process with PHI Protection</string>
+    <string name="clear_button">Clear</string>
+    <string name="result_label">Result:</string>
+    <string name="error_empty_fields">Please fill in all required fields</string>
+    <string name="error_network">Network error: %1$s</string>
+    <string name="error_api">API error: %1$s</string>
+    <string name="processing">Processing...</string>
+    <string name="success">Success</string>
+</resources>
