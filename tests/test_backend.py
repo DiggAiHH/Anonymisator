@@ -4,7 +4,10 @@ Run with: python3 -m pytest tests/test_backend.py -v
 """
 
 import sys
-sys.path.insert(0, '/home/runner/work/Anonymisator/Anonymisator')
+import os
+
+# Add project root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
 from fastapi.testclient import TestClient

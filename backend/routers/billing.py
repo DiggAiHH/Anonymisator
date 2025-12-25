@@ -7,6 +7,7 @@ import logging
 import time
 from typing import Optional
 from pydantic_settings import BaseSettings
+from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -27,9 +28,9 @@ if stripe_settings.stripe_api_key:
     stripe.api_key = stripe_settings.stripe_api_key
 
 
-# In-memory set to track processed events (idempotency)
-processed_events = set()
-MAX_PROCESSED_EVENTS = 10000
+# LRU cache for processed events (idempotency)
+MAX_PROCESSED_EVENTS = 1000
+processed_events = OrderedDict()
 
 
 @router.post("/billing/stripe/webhook")
@@ -43,7 +44,7 @@ async def stripe_webhook(
     Features:
     - Signature verification
     - Replay attack protection (300s window)
-    - Idempotent event processing
+    - Idempotent event processing with LRU cache
     - Handles checkout.session.completed events
     
     Args:
@@ -81,7 +82,7 @@ async def stripe_webhook(
             logger.warning(f"Event timestamp too old: {time_difference}s difference")
             raise HTTPException(status_code=400, detail="Event timestamp outside tolerance")
         
-        # Idempotency check
+        # Idempotency check with LRU cache
         event_id = event['id']
         if event_id in processed_events:
             logger.info(f"Event {event_id} already processed (idempotent)")
@@ -100,13 +101,13 @@ async def stripe_webhook(
             customer_email = session.get('customer_email', 'unknown')
             logger.info(f"Processing payment for customer: {customer_email}")
         
-        # Mark event as processed
-        processed_events.add(event_id)
+        # Mark event as processed with LRU eviction
+        processed_events[event_id] = current_timestamp
         
-        # Maintain reasonable size for processed_events set
+        # Maintain LRU cache size
         if len(processed_events) > MAX_PROCESSED_EVENTS:
-            # Remove oldest events (simplified - in production use a proper cache)
-            processed_events.clear()
+            # Remove oldest entry (FIFO in OrderedDict)
+            processed_events.popitem(last=False)
         
         return {"status": "success"}
         

@@ -1,7 +1,7 @@
 """
 SecureDoc router for PHI-protected document generation.
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 import logging
 
 from backend.models.schemas import SecureDocRequest, SecureDocResponse
@@ -11,8 +11,7 @@ from backend.services.llm_client import LLMClient
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Service instances
-anonymization_service = AnonymizationService()
+# LLM client can be shared (stateless)
 llm_client = LLMClient()
 
 
@@ -33,6 +32,9 @@ async def generate_securedoc(request: SecureDocRequest):
     Returns:
         SecureDocResponse with output_text and status
     """
+    # Create a new anonymization service instance for each request (thread-safe)
+    anonymization_service = AnonymizationService()
+    
     try:
         logger.info(f"Processing request for practice_id: {request.practice_id}, task: {request.task}")
         
