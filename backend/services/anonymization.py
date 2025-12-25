@@ -96,8 +96,8 @@ class AnonymizationService:
                 self.current_mappings[placeholder] = original
                 anonymized_text = anonymized_text.replace(original, placeholder, 1)
         
-        # Pattern 4: Phone numbers
-        phone_pattern = r'\b(?:\+?1[-.]?)?\(?([0-9]{3})\)?[-.]?([0-9]{3})[-.]?([0-9]{4})\b'
+        # Pattern 4: Phone numbers (improved to handle parentheses and various formats)
+        phone_pattern = r'\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b'
         for match in re.finditer(phone_pattern, text):
             original = match.group(0)
             if original not in self.current_mappings:

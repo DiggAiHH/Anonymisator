@@ -41,7 +41,8 @@ class LLMClient:
         """
         if not self.settings.llm_api_key:
             logger.warning("LLM API key not configured, returning mock response")
-            return f"[Mock LLM Response for task: {task}]\n\nProcessed text: {prompt[:100]}..."
+            # Return mock response with anonymized placeholders preserved
+            return f"[Mock LLM Response for task: {task}]\n\nAnalysis of anonymized text:\n{prompt[:200]}...\n\nSummary: The anonymized data shows clinical information with protected PHI."
         
         try:
             # Prepare request based on OpenAI API format
