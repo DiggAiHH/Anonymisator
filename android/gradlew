@@ -131,7 +131,7 @@ if "$cygwin" || "$msys" ; then
         if
             case $arg in                                #(
               -*)   false ;;                            # don't mess with options #(
-              /?*)  t=${arg#)}; t=/${t%%/*}             # looks like a POSIX filepath
+              /?*)  t=${arg#/}; t=/${t%%/*}             # looks like a POSIX filepath
                     [ -e "$t" ] ;;                      #(
               *)    false ;;
             esac
@@ -166,7 +166,7 @@ fi
 
 # Use "xargs" to parse quoted args.
 #
-# With -n://services.gradle.org/distributions/gradle-8.2-bin.zip1, each "xargs" call will have a single argument (quoted if needed)
+# With -n1, each "xargs" call will have a single argument (quoted if needed)
 eval "set -- $(
         printf '%s\n' "$DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS" |
         xargs -n1 |
