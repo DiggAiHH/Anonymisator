@@ -65,6 +65,28 @@
         .risk-container { height: 6px; width: 100%; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-top: 4px; }
         .risk-bar { height: 100%; transition: width 0.5s ease-out; }
         .dark .risk-container { background: #475569; }
+
+        /* Help / Hint UI */
+        .help-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1;
+            background: rgb(250 204 21); /* tailwind yellow-400 */
+            color: rgb(30 41 59);       /* slate-800 */
+            border: 1px solid rgb(234 179 8); /* yellow-500 */
+        }
+        .help-bubble {
+            position: absolute;
+            z-index: 40;
+            width: 320px;
+            max-width: min(80vw, 360px);
+        }
     </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans h-screen flex flex-col">
@@ -90,7 +112,7 @@
         <div class="flex items-center justify-between mb-6 px-4 py-2 bg-white dark:bg-slate-800 rounded-full shadow-sm">
             <button onclick="switchStep(1)" class="flex items-center gap-2 focus:outline-none group">
                 <div id="step1-circle" class="step-circle step-active">1</div>
-                <span class="text-sm font-bold hidden sm:block">Upload & Konfig</span>
+                <span class="text-sm font-bold hidden sm:block">How to Use</span>
             </button>
             <div class="step-line"></div>
             <button onclick="switchStep(2)" class="flex items-center gap-2 focus:outline-none group">
@@ -114,7 +136,30 @@
             
             <!-- Left: Dropzone -->
             <div class="flex-1 flex flex-col gap-4 bg-white dark:bg-slate-800 rounded-lg shadow p-6 overflow-y-auto">
-                <h2 class="text-lg font-bold border-b pb-2 mb-2">1. Dateien wählen</h2>
+                <div class="bg-indigo-50 dark:bg-slate-900 p-3 rounded border border-indigo-100 dark:border-slate-700 text-sm">
+                    <div class="flex items-center justify-between">
+                        <p class="font-bold text-indigo-800 dark:text-indigo-400">How to Use</p>
+                        <span class="relative">
+                            <button class="help-icon" onclick="toggleHelp('help-howto')" aria-label="Hilfe">!</button>
+                            <div id="help-howto" class="help-bubble hidden right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow p-3 text-xs">
+                                <div class="font-bold mb-1">Kurz-Anleitung</div>
+                                <div class="text-slate-600 dark:text-slate-300">1) Dateien laden → 2) Wörterbuch/Passwort setzen → 3) Starten → 4) Im Editor Filter aktivieren (Datum/IDs/Magic) → 5) KI ausführen. Vermeide, echte Namen/PII in Prompts zu schreiben.</div>
+                            </div>
+                        </span>
+                    </div>
+                    <p class="italic text-slate-600 dark:text-slate-400">Dateien bleiben lokal; an die KI geht nur pseudonymisierter Text ({{...}}).</p>
+                </div>
+
+                <div class="flex items-center justify-between border-b pb-2 mb-2">
+                    <h2 class="text-lg font-bold">1. Dateien wählen</h2>
+                    <span class="relative">
+                        <button class="help-icon" onclick="toggleHelp('help-upload')" aria-label="Hilfe">!</button>
+                        <div id="help-upload" class="help-bubble hidden right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow p-3 text-xs">
+                            <div class="font-bold mb-1">Upload (lokal)</div>
+                            <div class="text-slate-600 dark:text-slate-300">Zur Datenminimierung werden Dateinamen in der UI nicht angezeigt. Nur Inhalt wird (lokal) extrahiert. Prüfe OCR-Qualität bei Scans.</div>
+                        </div>
+                    </span>
+                </div>
                 <div id="dropZone" class="w-full h-48 border-4 border-dashed border-slate-300 dark:border-slate-600 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition relative">
                     <input type="file" id="filesInput" multiple accept="application/pdf,image/*" class="absolute inset-0 opacity-0 cursor-pointer">
                     <div class="text-4xl mb-2">📂</div>
@@ -124,7 +169,16 @@
                 
                 <div class="flex items-center space-x-2">
                     <input type="checkbox" id="enhanceImage" class="w-4 h-4 text-teal-600 rounded" checked>
-                    <label for="enhanceImage" class="text-xs font-medium cursor-pointer">OCR Bildverbesserung (Langsam)</label>
+                    <label for="enhanceImage" class="text-xs font-medium cursor-pointer flex items-center gap-2">
+                        OCR Bildverbesserung (Langsam)
+                        <span class="relative">
+                            <button class="help-icon" onclick="toggleHelp('help-ocr')" aria-label="Hilfe">!</button>
+                            <span id="help-ocr" class="help-bubble hidden left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow p-3 text-xs">
+                                <span class="font-bold">OCR Hinweis</span><br>
+                                <span class="text-slate-600 dark:text-slate-300">Aktivieren, wenn Scans schlecht lesbar sind. Dauert länger; verbessert oft die Erkennungsqualität.</span>
+                            </span>
+                        </span>
+                    </label>
                 </div>
 
                 <div id="fileListPreview" class="w-full flex-grow mt-2 space-y-2 overflow-y-auto min-h-[100px]"></div>
@@ -132,7 +186,16 @@
 
             <!-- Right: Dictionary & Password -->
             <div class="flex-1 flex flex-col gap-4 bg-white dark:bg-slate-800 rounded-lg shadow p-6 overflow-y-auto">
-                <h2 class="text-lg font-bold border-b pb-2 mb-2">2. Konfiguration (Wörterbuch)</h2>
+                <div class="flex items-center justify-between border-b pb-2 mb-2">
+                    <h2 class="text-lg font-bold">2. Konfiguration (Wörterbuch)</h2>
+                    <span class="relative">
+                        <button class="help-icon" onclick="toggleHelp('help-dict')" aria-label="Hilfe">!</button>
+                        <div id="help-dict" class="help-bubble hidden right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow p-3 text-xs">
+                            <div class="font-bold mb-1">Wörterbuch</div>
+                            <div class="text-slate-600 dark:text-slate-300">Begriffe hier werden im Text gefunden und durch Platzhalter ersetzt. Ergänze typische PHI-Labels/Begriffe deiner Dokumente. Prüfe im Editor, ob alles korrekt geschwärzt wurde.</div>
+                        </div>
+                    </span>
+                </div>
                 
                 <div>
                     <div class="flex justify-between items-center mb-1">
@@ -151,7 +214,16 @@
                 </div>
 
                 <div class="mt-auto">
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sicherheits-Passwort</label>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-2">
+                        Sicherheits-Passwort
+                        <span class="relative">
+                            <button class="help-icon" onclick="toggleHelp('help-password')" aria-label="Hilfe">!</button>
+                            <span id="help-password" class="help-bubble hidden left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow p-3 text-xs">
+                                <span class="font-bold">Passwort & Generator</span><br>
+                                <span class="text-slate-600 dark:text-slate-300">Wird genutzt, um KI-Antworten im Browser zu verschlüsseln. Vermeide kurze/recycelte Passwörter. 🎲 erzeugt ein starkes Passwort und kopiert es direkt.</span>
+                            </span>
+                        </span>
+                    </label>
                     <div class="flex gap-2 relative">
                         <input type="password" id="globalPassword" placeholder="Passwort..." class="flex-grow p-2 pr-10 border rounded dark:bg-slate-900 dark:border-slate-600">
                         <button onclick="togglePasswordVisibility('globalPassword')" class="absolute right-12 top-2 text-gray-400" title="Show">👁️</button>
@@ -171,9 +243,30 @@
             <div class="flex flex-col md:flex-row justify-between items-center mb-2 bg-white dark:bg-slate-800 p-2 rounded shadow gap-2">
                 <div class="flex gap-2 items-center flex-wrap">
                     <span class="text-sm font-bold px-2 py-1 bg-yellow-100 text-yellow-800 rounded">Filter:</span>
-                    <button onclick="toggleFilter('DATE')" id="btnFilterDATE" class="text-xs px-2 py-1 border rounded hover:bg-pink-50 text-pink-700 border-pink-200 transition">📅 Datum</button>
-                    <button onclick="toggleFilter('ID')" id="btnFilterID" class="text-xs px-2 py-1 border rounded hover:bg-red-50 text-red-700 border-red-200 transition">🆔 IDs</button>
-                    <button onclick="toggleFilter('MAGIC')" id="btnFilterMAGIC" class="text-xs px-2 py-1 border rounded hover:bg-purple-50 text-purple-700 border-purple-200 transition font-bold" title="Auto-Erkennung von Namen/Emails">🪄 Magic</button>
+                    <span class="relative inline-flex items-center gap-1">
+                        <button onclick="toggleFilter('DATE')" id="btnFilterDATE" class="text-xs px-2 py-1 border rounded hover:bg-pink-50 text-pink-700 border-pink-200 transition">📅 Datum</button>
+                        <button class="help-icon" onclick="toggleHelp('help-date')" aria-label="Hilfe">!</button>
+                        <div id="help-date" class="help-bubble hidden left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow p-3 text-xs">
+                            <div class="font-bold mb-1">Datum anonymisieren</div>
+                            <div class="text-slate-600 dark:text-slate-300">Erkennt viele Formate, z.B. 12.05.1985, 12/05/1985, 1985-05-12, 12. Mai 1985, 12 May 1985. Sonderformate bitte im Editor prüfen.</div>
+                        </div>
+                    </span>
+                    <span class="relative inline-flex items-center gap-1">
+                        <button onclick="toggleFilter('ID')" id="btnFilterID" class="text-xs px-2 py-1 border rounded hover:bg-red-50 text-red-700 border-red-200 transition">🆔 IDs</button>
+                        <button class="help-icon" onclick="toggleHelp('help-id')" aria-label="Hilfe">!</button>
+                        <div id="help-id" class="help-bubble hidden left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow p-3 text-xs">
+                            <div class="font-bold mb-1">IDs anonymisieren</div>
+                            <div class="text-slate-600 dark:text-slate-300">Schwärzt lange Zahlenfolgen (z.B. Fall-/Proben-IDs). Kann auch Nicht-PHI treffen (z.B. Messwerte) → Editor prüfen.</div>
+                        </div>
+                    </span>
+                    <span class="relative inline-flex items-center gap-1">
+                        <button onclick="toggleFilter('MAGIC')" id="btnFilterMAGIC" class="text-xs px-2 py-1 border rounded hover:bg-purple-50 text-purple-700 border-purple-200 transition font-bold" title="Auto-Erkennung von Namen/Emails">🪄 Magic</button>
+                        <button class="help-icon" onclick="toggleHelp('help-magic')" aria-label="Hilfe">!</button>
+                        <div id="help-magic" class="help-bubble hidden left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow p-3 text-xs">
+                            <div class="font-bold mb-1">Magic (datenschutzkonform?)</div>
+                            <div class="text-slate-600 dark:text-slate-300">Läuft lokal im Browser und ersetzt erkannte Muster durch Platzhalter. Es sendet keine zusätzlichen Rohdaten an die KI. Risiko: False-Positives/False-Negatives → immer im Editor prüfen.</div>
+                        </div>
+                    </span>
                 </div>
                 
                 <div class="flex gap-1 flex-grow max-w-md">
@@ -195,12 +288,25 @@
                 </h2>
                 
                 <div class="bg-indigo-50 dark:bg-slate-900 p-3 rounded border border-indigo-100 dark:border-slate-700 text-sm">
-                    <p class="font-bold text-indigo-800 dark:text-indigo-400">Kontext:</p>
+                    <p class="font-bold text-indigo-800 dark:text-indigo-400 flex items-center gap-2">
+                        Kontext:
+                        <span class="relative">
+                            <button class="help-icon" onclick="toggleHelp('help-context')" aria-label="Hilfe">!</button>
+                            <span id="help-context" class="help-bubble hidden left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow p-3 text-xs">
+                                <span class="font-bold">Was ist das?</span><br>
+                                <span class="text-slate-600 dark:text-slate-300">Anzahl der geladenen Dokumente, deren <b>pseudonymisierter</b> Text an Gemini gesendet wird. Originaldaten bleiben lokal; die KI sieht nur Platzhalter wie {{DATE_1}}.</span>
+                            </span>
+                        </span>
+                    </p>
                     <p id="contextSummary" class="italic text-slate-600 dark:text-slate-400">0 Dokumente.</p>
                 </div>
 
                 <label class="text-xs font-bold uppercase text-slate-500">System Prompt / Aufgabe</label>
                 <textarea id="aiPromptInput" class="w-full h-32 p-3 border rounded font-mono text-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Z.B.: Erstelle eine Zusammenfassung aller Befunde. Extrahiere alle Medikamente als Liste."></textarea>
+
+                <label class="text-xs font-bold uppercase text-slate-500">Gemini API Key (lokal)</label>
+                <input type="password" id="geminiApiKey" class="w-full p-2 border rounded font-mono text-sm dark:bg-slate-900 dark:border-slate-600" placeholder="AIza... (wird nur lokal gespeichert)">
+                <p class="text-[10px] text-slate-500 dark:text-slate-400">Kein Upload/Export des Keys. Speicherung nur im Browser (localStorage).</p>
                 
                 <div class="flex gap-2 flex-wrap">
                     <button onclick="setPrompt('Zusammenfassen')" class="text-xs bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded hover:bg-gray-200">📝 Zusammenfassen</button>
@@ -241,6 +347,16 @@
                         <p class="mb-4 font-bold text-slate-700 dark:text-slate-300">🔐 Session abgelaufen</p>
                         <input type="password" id="reentryPassword" placeholder="Passwort eingeben" class="p-2 border rounded mb-2 w-48 dark:bg-slate-800">
                         <button onclick="manualDecrypt()" class="bg-teal-600 text-white px-4 py-2 rounded font-bold">Entschlüsseln</button>
+                        <div class="mt-2 text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                            <span>Nur das korrekte Passwort entsperrt den Inhalt.</span>
+                            <span class="relative">
+                                <button class="help-icon" onclick="toggleHelp('help-decrypt')" aria-label="Hilfe">!</button>
+                                <span id="help-decrypt" class="help-bubble hidden left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow p-3 text-xs">
+                                    <span class="font-bold">Warum Passwort?</span><br>
+                                    <span class="text-slate-600 dark:text-slate-300">Die KI-Antwort wird im Browser mit deinem Passwort verschlüsselt gespeichert. Ohne korrektes Passwort kann sie nicht wiederhergestellt werden.</span>
+                                </span>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -252,7 +368,7 @@
                     <p class="text-xs text-slate-600 dark:text-slate-400">
                         Exportiert eine eigenständige HTML-App.
                         <br>✅ Prompt eingebaut
-                        <br>✅ Key eingebaut
+                        <br>✅ Key nicht im Code
                         <br>✅ <strong>Wörterbuch integriert</strong>
                     </p>
                     
@@ -262,7 +378,7 @@
                     </div>
 
                     <div class="bg-yellow-50 p-2 rounded border border-yellow-200 text-[10px] text-yellow-800">
-                        WARNUNG: Die exportierte Datei enthält deinen persönlichen API Key. Gib sie nicht an Dritte weiter!
+                        Hinweis: Die exportierte Datei enthält keinen API Key. Du gibst ihn lokal beim ersten Start ein.
                     </div>
 
                     <button onclick="generateMicroApp()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded shadow mt-auto flex items-center justify-center gap-2">
@@ -284,7 +400,16 @@
 
     <script>
         // --- GLOBAL CONFIG ---
-        const HARDCODED_KEY = "AIzaSyCdVZYK3Zm1S6-rbvib7qhbJYQaleYFPbc";
+        function getApiKey() {
+            const el = document.getElementById('geminiApiKey');
+            const entered = (el && el.value ? String(el.value).trim() : "");
+            if (entered) {
+                localStorage.setItem('medSecure_apiKey', entered);
+                return entered;
+            }
+            const stored = localStorage.getItem('medSecure_apiKey');
+            return (stored && stored.trim()) ? stored.trim() : "";
+        }
 
         // --- STATE MANAGEMENT ---
         let appState = {
@@ -293,10 +418,28 @@
             currentStep: 1,
             password: null,
             passwordTimestamp: 0,
-            aiResultRaw: "", 
+            aiResultEncrypted: "",
             lastPrompt: "",
-            dictionary: new Set()
+            dictionary: new Set(),
+            ocrWorker: null
         };
+
+        const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
+
+        function isAudioFile(f) {
+            if(!f) return false;
+            if(typeof f.type === 'string' && f.type.startsWith('audio/')) return true;
+            const name = String(f.name || '').toLowerCase();
+            return (/(\.mp3|\.wav|\.m4a|\.aac|\.ogg|\.flac)$/).test(name);
+        }
+
+        function isSupportedFile(f) {
+            if(!f) return false;
+            if(f.type === 'application/pdf') return true;
+            if(typeof f.type === 'string' && f.type.startsWith('image/')) return true;
+            const name = String(f.name || '').toLowerCase();
+            return (/(\.pdf|\.png|\.jpg|\.jpeg|\.webp|\.bmp|\.tif|\.tiff)$/).test(name);
+        }
 
         const PROFILES = {
             'med': "Nachname, Vorname, Patient, Geburtsdatum, Adresse, Telefon, Versichertennummer, Arzt, Diagnose, Befund, Medikament",
@@ -307,19 +450,68 @@
         };
 
         const REGEX_PATTERNS = {
-            DATE: /\b\d{1,2}\.\d{1,2}\.(\d{2}|\d{4})\b/g,
+            // Common EU/US/ISO numeric dates + German/English month names
+            DATE: /\b(?:[0-3]?\d[.\-\/](?:[01]?\d)[.\-\/](?:\d{2}|\d{4})|\d{4}[.\-\/](?:[01]?\d)[.\-\/][0-3]?\d|(?:[01]?\d)[\/\-][0-3]?\d[\/\-](?:\d{2}|\d{4})|[0-3]?\d\.?\s*(?:Jan(?:uar)?|Feb(?:ruar)?|M(?:ä|ae)rz|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?|January|February|March|April|May|June|July|August|September|October|November|December)\s*(?:\d{2}|\d{4}))\b/gi,
             ID: /\b\d{5,}\b/g,
             EMAIL: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
             PHONE: /(?:\+49|0)[1-9][0-9 \-\/]{5,}\d/g
         };
 
+        const ENCRYPTION_PREFIX = 'MEDSECURE_AIRAW_V1:';
+
+        function toggleHelp(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const isHidden = el.classList.contains('hidden');
+            document.querySelectorAll('.help-bubble').forEach((b) => b.classList.add('hidden'));
+            if (isHidden) el.classList.remove('hidden');
+        }
+
+        function updateContextSummary() {
+            const el = document.getElementById('contextSummary');
+            if (!el) return;
+            const n = appState.documents.length;
+            if (n === 0) {
+                el.innerText = '0 Dokumente. Lade zuerst Dateien und starte die Analyse.';
+                return;
+            }
+            el.innerText = `${n} Dokument${n === 1 ? '' : 'e'} – es wird nur pseudonymisierter Text (Platzhalter) gesendet.`;
+        }
+
+        function encryptAiResult(plainText, password) {
+            if (!password) return '';
+            return CryptoJS.AES.encrypt(ENCRYPTION_PREFIX + plainText, password).toString();
+        }
+
+        function decryptAiResult(cipherText, password) {
+            if (!cipherText || !password) return null;
+            const bytes = CryptoJS.AES.decrypt(cipherText, password);
+            const decoded = bytes.toString(CryptoJS.enc.Utf8);
+            if (!decoded || !decoded.startsWith(ENCRYPTION_PREFIX)) return null;
+            return decoded.slice(ENCRYPTION_PREFIX.length);
+        }
+
         // --- INIT ---
         window.onload = () => {
             if(localStorage.getItem('medSecure_dark')==='true') document.documentElement.classList.add('dark');
             loadProfile(); // Init Dictionary
+
+            const apiKeyEl = document.getElementById('geminiApiKey');
+            if (apiKeyEl) {
+                apiKeyEl.value = localStorage.getItem('medSecure_apiKey') || "";
+                apiKeyEl.addEventListener('input', () => {
+                    const v = String(apiKeyEl.value || "").trim();
+                    if (v) localStorage.setItem('medSecure_apiKey', v);
+                });
+            }
             
             const fileInput = document.getElementById('filesInput');
             if(fileInput) fileInput.addEventListener('change', handleFileSelect);
+
+            const pwdEl = document.getElementById('globalPassword');
+            if (pwdEl) {
+                pwdEl.addEventListener('input', () => checkPwdStrength(String(pwdEl.value || '')));
+            }
             
             // Drag & Drop
             const dz = document.getElementById('dropZone');
@@ -353,7 +545,26 @@
             
             if (fileList.length === 0) return;
 
+            const accepted = [];
             Array.from(fileList).forEach((f) => {
+                if (isAudioFile(f)) {
+                    showToast("Audio-Dateien sind nicht erlaubt", "error");
+                    return;
+                }
+                if (!isSupportedFile(f)) {
+                    showToast("Nicht unterstützter Dateityp", "error");
+                    return;
+                }
+                if (typeof f.size === 'number' && f.size > MAX_UPLOAD_BYTES) {
+                    showToast("Datei zu groß (max 1GB)", "error");
+                    return;
+                }
+                accepted.push(f);
+            });
+
+            if (!accepted.length) return;
+
+            accepted.forEach((f) => {
                 // Quality Check for images
                 if(f.type.includes('image')) {
                     checkImageQuality(f);
@@ -363,7 +574,7 @@
                 appState.documents.push({
                     id: docId,
                     file: f,
-                    name: f.name,
+                    displayName: `Dokument ${docId + 1}`,
                     rawText: "",
                     cleanText: "",
                     mapping: {}
@@ -371,10 +582,11 @@
                 
                 const div = document.createElement('div');
                 div.className = "flex items-center justify-between bg-slate-50 dark:bg-slate-900 p-2 rounded border text-sm animate-pop";
-                div.innerHTML = `<span>📄 ${f.name}</span> <span class="text-xs text-slate-500">${(f.size/1024).toFixed(1)} KB</span>`;
+                div.innerHTML = `<span>📄 Dokument ${docId + 1}</span> <span class="text-xs text-slate-500">${(f.size/1024).toFixed(1)} KB</span>`;
                 preview.appendChild(div);
             });
-            showToast(`${fileList.length} Dateien geladen`, "success");
+            showToast(`${accepted.length} Dateien geladen`, "success");
+            updateContextSummary();
         }
 
         function checkImageQuality(file) {
@@ -382,7 +594,7 @@
             img.src = URL.createObjectURL(file);
             img.onload = () => {
                 if(img.width < 1000 || img.height < 1000) {
-                    showToast(`⚠️ ${file.name} hat eine niedrige Auflösung. OCR könnte ungenau sein.`, "error");
+                    showToast("⚠️ Niedrige Auflösung. OCR könnte ungenau sein.", "error");
                 }
             }
         }
@@ -393,7 +605,9 @@
             for(let i=0;i<12;i++) pwd += chars.charAt(Math.floor(Math.random()*chars.length));
             document.getElementById('globalPassword').value = pwd;
             checkPwdStrength(pwd);
-            showToast("Passwort generiert");
+            navigator.clipboard.writeText(pwd)
+                .then(() => showToast("Passwort generiert & kopiert", "success"))
+                .catch(() => showToast("Passwort generiert (Kopieren blockiert)", "info"));
         }
 
         function togglePasswordVisibility(id) {
@@ -424,15 +638,24 @@
             setLoader(true, "Lese & Anonymisiere...");
 
             try {
-                for(let doc of appState.documents) {
-                    if(doc.file.type === "application/pdf") {
-                        doc.rawText = await extractPDF(doc.file);
-                    } else {
-                        if (enhanced) doc.rawText = await extractTextFromImageEnhanced(doc.file);
-                        else doc.rawText = await extractTextFromImage(doc.file);
+                for(let i = 0; i < appState.documents.length; i++) {
+                    const doc = appState.documents[i];
+                    try {
+                        if(doc.file.type === "application/pdf") {
+                            setLoader(true, `Lese PDF (${i+1}/${appState.documents.length}): ${doc.displayName}`);
+                            doc.rawText = await extractPDF(doc.file);
+                        } else {
+                            setLoader(true, `OCR (${i+1}/${appState.documents.length}): ${doc.displayName}`);
+                            if (enhanced) doc.rawText = await extractTextFromImageEnhanced(doc.file);
+                            else doc.rawText = await extractTextFromImage(doc.file);
+                        }
+                        runAnonymizationOnDoc(doc);
+                    } catch(e) {
+                        doc.rawText = "";
+                        doc.cleanText = "";
+                        doc.mapping = {};
+                        showToast(`Fehler bei ${doc.displayName}: ${e && e.message ? e.message : 'unbekannt'}`, "error");
                     }
-                    // Run anonymization pipeline
-                    runAnonymizationOnDoc(doc);
                 }
                 
                 renderEditors();
@@ -442,6 +665,7 @@
                 console.error(e);
                 showToast("Fehler: " + e.message, "error");
             } finally {
+                await terminateOcrWorker();
                 setLoader(false);
             }
         }
@@ -502,10 +726,33 @@
             return text;
         }
 
+        async function getOcrWorker() {
+            if (appState.ocrWorker) return appState.ocrWorker;
+            setLoader(true, "Initialisiere OCR (deu)...");
+            const w = await Tesseract.createWorker({
+                logger: (m) => {
+                    if(!m) return;
+                    if (m.status && typeof m.progress === 'number') {
+                        const pct = Math.round(m.progress * 100);
+                        setLoader(true, `OCR: ${m.status} (${pct}%)`);
+                    }
+                }
+            });
+            await w.loadLanguage('deu');
+            await w.initialize('deu');
+            appState.ocrWorker = w;
+            return w;
+        }
+
+        async function terminateOcrWorker() {
+            if (!appState.ocrWorker) return;
+            try { await appState.ocrWorker.terminate(); } catch(_) {}
+            appState.ocrWorker = null;
+        }
+
         async function extractTextFromImage(f) { 
-            const w=await Tesseract.createWorker('deu');
-            const r=await w.recognize(f);
-            await w.terminate();
+            const w = await getOcrWorker();
+            const r = await w.recognize(f);
             return r.data.text; 
         }
 
@@ -527,10 +774,13 @@
                             p[j]=p[j+1]=p[j+2]=v;
                         }
                         x.putImageData(d,0,0);
-                        const w=await Tesseract.createWorker('deu');
-                        const rt=await w.recognize(c.toDataURL('image/jpeg'));
-                        await w.terminate();
-                        r(rt.data.text);
+                        try {
+                            const w = await getOcrWorker();
+                            const rt = await w.recognize(c.toDataURL('image/jpeg'));
+                            r(rt.data.text);
+                        } catch(err) {
+                            r("");
+                        }
                     };
                     i.src=e.target.result;
                 };
@@ -605,7 +855,7 @@
 
                 card.innerHTML = `
                     <div class="flex justify-between items-center mb-2 border-b pb-1">
-                        <h3 class="font-bold text-xs text-slate-500 uppercase">${doc.name}</h3>
+                        <h3 class="font-bold text-xs text-slate-500 uppercase">${doc.displayName}</h3>
                         <div class="flex flex-col items-end w-32">
                             <span class="text-[9px] text-slate-400">Datenschutz-Score: ${Math.round(ratio)}%</span>
                             <div class="risk-container"><div class="risk-bar ${safeColor}" style="width: ${Math.min(ratio * 3, 100)}%"></div></div>
@@ -656,16 +906,21 @@
             const prompt = document.getElementById('aiPromptInput').value;
             appState.lastPrompt = prompt;
             let fullContext = "";
-            appState.documents.forEach((d, i) => fullContext += `--- DOKUMENT ${i+1} (${d.name}) ---\n${d.cleanText}\n\n`);
+            appState.documents.forEach((d, i) => fullContext += `--- DOKUMENT ${i+1} (${d.displayName}) ---\n${d.cleanText}\n\n`);
 
             setLoader(true, "Sende an Gemini (Cloud)...");
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${HARDCODED_KEY}`, {
+                const apiKey = getApiKey();
+                if(!apiKey) throw new Error("Kein API Key gesetzt");
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ contents: [{ parts: [{ text: `SYSTEM: Du bist ein medizinischer Assistent. Der Text ist pseudonymisiert. Ändere KEINE Platzhalter ({{...}}). \n\nKONTEXT:\n${fullContext}\n\nAUFGABE: ${prompt}` }] }] })
                 });
                 const data = await response.json();
-                appState.aiResultRaw = data.candidates?.[0]?.content?.parts?.[0]?.text || "Fehler: Keine Antwort.";
+                const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                if(!raw) throw new Error("Keine Antwort (candidates leer)");
+                if(!appState.password) throw new Error("Session-Passwort fehlt");
+                appState.aiResultEncrypted = encryptAiResult(raw, appState.password);
                 processResultDisplay();
                 switchStep(4);
                 showToast("Antwort erhalten!", "success");
@@ -677,8 +932,13 @@
             const now = Date.now();
             const isSafe = (now - appState.passwordTimestamp) < (3 * 60 * 1000); 
             if(isSafe && appState.password) {
-                decryptAndShow();
-                document.getElementById('decryptOverlay').classList.add('hidden');
+                const ok = decryptAndShow();
+                if(ok) document.getElementById('decryptOverlay').classList.add('hidden');
+                else {
+                    document.getElementById('finalOutput').value = "--- INHALT VERSCHLÜSSELT ---";
+                    document.getElementById('decryptOverlay').classList.remove('hidden');
+                    appState.password = null;
+                }
             } else {
                 document.getElementById('finalOutput').value = "--- INHALT VERSCHLÜSSELT ---";
                 document.getElementById('decryptOverlay').classList.remove('hidden');
@@ -687,18 +947,28 @@
         }
 
         function manualDecrypt() {
-            decryptAndShow();
+            const pw = String(document.getElementById('reentryPassword')?.value || '').trim();
+            if(!pw) return showToast('Passwort fehlt', 'error');
+            const ok = decryptAndShow(pw);
+            if(!ok) return showToast('Falsches Passwort', 'error');
+            appState.password = pw;
+            appState.passwordTimestamp = Date.now();
+            document.getElementById('reentryPassword').value = '';
             document.getElementById('decryptOverlay').classList.add('hidden');
         }
 
-        function decryptAndShow() {
-            let text = appState.aiResultRaw;
+        function decryptAndShow(overridePassword = null) {
+            const pw = overridePassword || appState.password;
+            const plain = decryptAiResult(appState.aiResultEncrypted, pw);
+            if(plain == null) return false;
+            let text = plain;
             appState.documents.forEach(doc => {
                 Object.keys(doc.mapping).sort((a,b) => b.length - a.length).forEach(ph => {
                     text = text.split(ph).join(doc.mapping[ph]);
                 });
             });
             document.getElementById('finalOutput').value = text;
+            return true;
         }
 
         function copyResult() { navigator.clipboard.writeText(document.getElementById('finalOutput').value).then(()=>showToast("Kopiert!")); }
@@ -730,6 +1000,10 @@
                 '<body class="bg-slate-50 text-slate-800 h-screen flex flex-col items-center justify-center p-4">',
                 '<div class="bg-white p-8 rounded-xl shadow-xl w-full max-w-2xl border-t-4 border-indigo-600 flex flex-col gap-4">',
                 '<h1 class="text-2xl font-bold mb-2 flex items-center gap-2">🚀 ' + appName.replace(/</g, '&lt;') + '</h1>',
+                '<div class="text-xs bg-indigo-50 border border-indigo-100 p-3 rounded">',
+                '<div class="font-bold text-indigo-800">How to Use</div>',
+                '<div class="text-slate-700">Datei laden → Text wird lokal extrahiert → sensible Daten werden durch Platzhalter ersetzt → nur der pseudonymisierte Text geht an die KI. Prüfe Ergebnisse sorgfältig.</div>',
+                '</div>',
                 
                 '<div class="text-xs bg-gray-100 p-2 rounded">',
                 '<label class="font-bold">Eigenes Wörterbuch (zusätzlich):</label>',
@@ -758,7 +1032,7 @@
                 '<script>',
                 'const FIXED_PROMPT = ' + safePrompt + ';',
                 'const BASE_DICT = new Set(' + dictArray + ');',
-                'const API_KEY = "' + HARDCODED_KEY + '";',
+                'const API_KEY = "";',
                 'const logs = [];',
                 'const dz=document.getElementById("drop"), inp=document.getElementById("f");',
                 'dz.onclick=()=>inp.click();',
@@ -780,7 +1054,7 @@
                 '   document.getElementById("status").classList.remove("hidden");',
                 '   document.getElementById("auditLog").classList.remove("hidden");',
                 '   document.getElementById("resultArea").classList.add("hidden");',
-                '   log("Start: Datei empfangen - " + file.name);',
+                '   log("Start: Datei empfangen");',
                 '   try {',
                 '       update("Lese Text...");',
                 '       let txt = "";',
@@ -803,7 +1077,13 @@
                 '           clean = clean.replace(regex, (m) => { if(!Object.values(map).includes(m)) { let ph="{{DICT_"+(c++)+"}}"; map[ph]=m; return ph; } return m; });',
                 '       });',
                 '       // Apply Regex (Date/ID)',
-                '       const pats = [/\\b\\d{1,2}\\.\\d{1,2}\\.(\\d{2}|\\d{4})\\b/g, /\\b\\d{5,}\\b/g];',
+                '       const pats = [',
+                '           /\\b(?:[0-3]?\\d)[.\\-\\/ ](?:[01]?\\d)[.\\-\\/ ](?:\\d{2}|\\d{4})\\b/gi,',
+                '           /\\b(?:\\d{4})[.\\-\\/](?:[01]?\\d)[.\\-\\/](?:[0-3]?\\d)\\b/gi,',
+                '           /\\b(?:[01]?\\d)[\\/\\-][0-3]?\\d[\\/\\-](?:\\d{2}|\\d{4})\\b/gi,',
+                '           /\\b(?:[0-3]?\\d)\\.?\\s*(?:Jan(?:uar)?|Feb(?:ruar)?|M(?:ä|ae)rz|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?|January|February|March|April|May|June|July|August|September|October|November|December)\\s*(?:\\d{2}|\\d{4})\\b/gi,',
+                '           /\\b\\d{5,}\\b/g',
+                '       ];',
                 '       pats.forEach(r => clean = clean.replace(r, (m) => { if(!Object.values(map).includes(m)) { let ph="{{DATA_"+(c++)+"}}"; map[ph]=m; return ph; } return m; }));',
                 '       log("Daten geschwärzt: " + Object.keys(map).length + " Einträge.");',
                 '       update("Frage KI...");',
@@ -812,7 +1092,9 @@
                 '           body: JSON.stringify({ contents: [{ parts: [{ text: "SYSTEM: Pseudonymisierter Text. Ändere keine Platzhalter. TEXT: "+clean+" AUFGABE: "+FIXED_PROMPT }] }] })',
                 '       });',
                 '       const json = await resp.json();',
-                '       let res = json.candidates[0].content.parts[0].text;',
+                '       const resTxt = (json && json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts && json.candidates[0].content.parts[0] && json.candidates[0].content.parts[0].text) || "";',
+                '       if(!resTxt) throw new Error("Keine KI-Antwort (candidates leer)");',
+                '       let res = resTxt;',
                 '       log("Antwort erhalten. Starte Entschlüsselung.");',
                 '       update("Entschlüssele...");',
                 '       Object.keys(map).sort((a,b)=>b.length-a.length).forEach(k => res = res.split(k).join(map[k]));',
@@ -856,6 +1138,8 @@
             document.getElementById(`view${n}`).classList.add('flex');
             document.getElementById(`step${n}-circle`).classList.replace('step-inactive', 'step-active');
             appState.currentStep = n;
+            document.querySelectorAll('.help-bubble').forEach((b) => b.classList.add('hidden'));
+            if(n === 3) updateContextSummary();
         }
 
         function setLoader(state, txt="Lade...") {

@@ -2,6 +2,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Run as non-root (security best practice)
+RUN useradd -m -u 10001 appuser
+
 # Copy requirements
 COPY requirements.txt .
 
@@ -10,6 +13,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY backend ./backend
+
+# Copy static demo UIs (served by backend under /ui/*)
+COPY ["Version 1.html", "Version 2.html", "Präsentation.html", "./"]
+
+# Ensure non-root can read the app
+RUN chown -R appuser:appuser /app
+
+USER appuser
 
 # Expose port
 EXPOSE 8000

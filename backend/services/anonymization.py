@@ -6,6 +6,7 @@ Improvements:
 - Placeholder validation in re-identification
 - Enhanced pattern detection with compiled regex for performance
 """
+import os
 import re
 import hashlib
 import secrets
@@ -36,11 +37,38 @@ class AnonymizationService:
     
     # Pre-compiled regex patterns for better performance
     PATTERNS = {
-        'date': re.compile(r'\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})\b'),
+        # Date formats (best-effort):
+        # - EU: 31.12.2025 / 31-12-25 / 31/12/2025
+        # - ISO: 2025-12-31 / 2025/12/31 / 2025.12.31
+        # - US: 12/31/2025
+        # - Month names (DE/EN): 3 Jan 2026, 3. Januar 2026
+        'date': re.compile(
+            r'\b(?:'
+            r'(?:0?[1-9]|[12]\d|3[01])[\./\-](?:0?[1-9]|1[0-2])[\./\-](?:\d{2}|\d{4})'
+            r'|(?:\d{4})[\./\-](?:0?[1-9]|1[0-2])[\./\-](?:0?[1-9]|[12]\d|3[01])'
+            r'|(?:0?[1-9]|1[0-2])/(?:0?[1-9]|[12]\d|3[01])/(?:\d{2}|\d{4})'
+            r'|(?:0?[1-9]|[12]\d|3[01])\.?\s*'
+            r'(?:Jan(?:uar)?|Feb(?:ruar)?|Mär(?:z)?|Maerz|Apr(?:il)?|Mai|Jun(?:i)?|Jul(?:i)?|Aug(?:ust)?|Sep(?:tember)?|Okt(?:ober)?|Nov(?:ember)?|Dez(?:ember)?'
+            r'|January|February|March|April|May|June|July|August|September|October|November|December)\s*'
+            r'(?:\d{2}|\d{4})'
+            r')\b',
+            re.IGNORECASE,
+        ),
         'id': re.compile(r'\b(?:MRN|ID|SSN)[:\s-]*(\d{3}-\d{2}-\d{4}|\d{9}|\w+\d{4,})\b', re.IGNORECASE),
         'email': re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'),
         'phone': re.compile(r'\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b'),
-        'name': re.compile(r'\b(?:Dr\.|Mr\.|Mrs\.|Ms\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b')
+        'name': re.compile(r'\b(?:Dr\.|Mr\.|Mrs\.|Ms\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b'),
+
+        # --- DSGVO Art. 9 (Special Categories of Personal Data) ---
+        # Best-effort detection: these are high-sensitivity indicators.
+        # In medical contexts, most content can be Art.9; this layer is for common
+        # structured markers (e.g., codes) and explicit labels.
+        'art9_health_icd10': re.compile(r'\b[A-TV-Z][0-9]{2}(?:\.[0-9A-TV-Z]{1,2})?\b'),
+        'art9_genetic_biometric': re.compile(r'\b(?:DNA|genetisch(?:e|er|es)?|biometrisch(?:e|er|es)?|Fingerabdruck|Gesichtserkennung)\b', re.IGNORECASE),
+        'art9_religion': re.compile(r'\b(?:katholisch|evangelisch|muslim(?:isch)?|j\u00fcdisch|buddhist(?:isch)?|hindu(?:istisch)?|atheist(?:isch)?)\b', re.IGNORECASE),
+        'art9_politics': re.compile(r'\b(?:CDU|CSU|SPD|FDP|AfD|Die\s+Linke|GR\u00dcNE|Gr\u00fcne)\b', re.IGNORECASE),
+        'art9_union': re.compile(r'\b(?:Gewerkschaft|ver\.di|IG\s+Metall|IG\s+BCE)\b', re.IGNORECASE),
+        'art9_sexuality': re.compile(r'\b(?:sexuelle\s+Orientierung|homosexuell|heterosexuell|bisexuell|transgender|queer)\b', re.IGNORECASE),
     }
     
     def __init__(self):
@@ -50,6 +78,10 @@ class AnonymizationService:
         self.used_placeholders: Set[str] = set()
         self.session_salt = secrets.token_hex(16)
         self._anonymization_stats = {'total_phi_elements': 0, 'by_category': {}}
+
+        self.fail_on_missing_placeholders = os.getenv(
+            "REIDENTIFY_FAIL_ON_MISSING_PLACEHOLDERS", "false"
+        ).strip().lower() in {"1", "true", "yes", "on"}
     
     def _generate_placeholder(self, original: str, category: str) -> str:
         """
@@ -141,8 +173,9 @@ class AnonymizationService:
         self._anonymization_stats['total_phi_elements'] = len(all_matches)
         
         logger.info(
-            f"Anonymized text: {len(self.current_mappings)} unique PHI elements, "
-            f"Stats: {self._anonymization_stats['by_category']}"
+            "Anonymized text: %d unique elements (categories=%s)",
+            len(self.current_mappings),
+            list(self._anonymization_stats['by_category'].keys()),
         )
         return anonymized_text, self.current_mappings
     
@@ -174,6 +207,9 @@ class AnonymizationService:
                 f"not found in LLM response. They may have been modified or removed. "
                 f"First missing: {missing_placeholders[0]}"
             )
+
+            if self.fail_on_missing_placeholders:
+                raise ValueError("Missing placeholders in downstream response")
         
         # Sort by placeholder length (descending) to avoid partial replacements
         sorted_mappings = sorted(mappings.items(), key=lambda x: len(x[0]), reverse=True)
@@ -182,8 +218,9 @@ class AnonymizationService:
             reidentified_text = reidentified_text.replace(placeholder, original)
         
         logger.info(
-            f"Re-identified text using {len(mappings)} mappings "
-            f"({len(missing_placeholders)} placeholders were missing)"
+            "Re-identified text using %d mappings (missing=%d)",
+            len(mappings),
+            len(missing_placeholders),
         )
         return reidentified_text
     

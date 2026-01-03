@@ -6,7 +6,7 @@ import stripe
 import logging
 import time
 from typing import Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
@@ -17,9 +17,9 @@ class StripeSettings(BaseSettings):
     """Stripe configuration from environment variables."""
     stripe_webhook_secret: str = ""
     stripe_api_key: str = ""
-    
-    class Config:
-        env_file = ".env"
+
+    # Allow a shared repo-level .env with many unrelated keys.
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 # Initialize Stripe settings
@@ -94,12 +94,12 @@ async def stripe_webhook(
         
         if event_type == 'checkout.session.completed':
             session = event['data']['object']
-            logger.info(f"Checkout session completed: {session.get('id')}")
+            logger.info("Checkout session completed (session_id=%s)", session.get('id'))
             
             # Add business logic here (e.g., provision access, send confirmation)
             # For MVP, just log and acknowledge
-            customer_email = session.get('customer_email', 'unknown')
-            logger.info(f"Processing payment for customer: {customer_email}")
+            # NOTE: Do not log customer email or other personal data.
+            logger.info("Processing payment (event_id=%s)", event_id)
         
         # Mark event as processed with LRU eviction
         processed_events[event_id] = current_timestamp
@@ -114,6 +114,9 @@ async def stripe_webhook(
     except stripe.error.SignatureVerificationError as e:
         logger.error(f"Invalid Stripe signature: {str(e)}")
         raise HTTPException(status_code=400, detail="Invalid signature")
+    except HTTPException:
+        # Preserve explicit HTTP errors (e.g., timestamp tolerance)
+        raise
     except Exception as e:
         logger.error(f"Webhook processing error: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=400, detail="Webhook processing failed")

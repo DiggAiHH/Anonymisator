@@ -11,8 +11,9 @@ import httpx
 import logging
 import asyncio
 from typing import Dict, Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from enum import Enum
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +34,12 @@ class LLMSettings(BaseSettings):
     llm_max_retries: int = 3
     llm_retry_delay: float = 1.0  # Initial delay in seconds
     llm_provider: LLMProvider = LLMProvider.OPENAI
-    
-    class Config:
-        env_file = ".env"
+
+    # Optional: path to a master system prompt file (repo-local)
+    llm_master_prompt_path: str = ".1Promp/Master Prompt"
+
+    # Allow a shared repo-level .env with many unrelated keys.
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 class LLMClient:
@@ -54,6 +58,7 @@ class LLMClient:
         self.client = httpx.AsyncClient(timeout=self.settings.llm_timeout)
         self._circuit_breaker_failures = 0
         self._circuit_breaker_threshold = 5
+        self._cached_master_prompt: Optional[str] = None
     
     async def generate(self, prompt: str, task: str) -> str:
         """
@@ -100,8 +105,7 @@ class LLMClient:
                 # Non-retryable errors
                 if status_code not in self.RETRYABLE_STATUS_CODES:
                     logger.error(
-                        f"Non-retryable LLM API error: {status_code}. "
-                        f"Response: {e.response.text[:200]}"
+                        f"Non-retryable LLM API error: {status_code}."
                     )
                     self._circuit_breaker_failures += 1
                     raise Exception(f"LLM API error: {status_code}")
@@ -136,7 +140,8 @@ class LLMClient:
                     
             except Exception as e:
                 last_exception = e
-                logger.error(f"Unexpected LLM API error: {type(e).__name__}: {str(e)}")
+                # Do not log exception message content (may contain personal data)
+                logger.error(f"Unexpected LLM API error: {type(e).__name__}")
                 self._circuit_breaker_failures += 1
                 break  # Don't retry unexpected errors
         
@@ -151,12 +156,13 @@ class LLMClient:
         """
         # Prepare request based on provider
         if self.settings.llm_provider == LLMProvider.OPENAI:
+            system_prompt = self._build_system_prompt(task)
             payload = {
                 "model": self.settings.llm_model,
                 "messages": [
                     {
                         "role": "system",
-                        "content": f"You are a medical assistant. Task: {task}"
+                        "content": system_prompt,
                     },
                     {
                         "role": "user",
@@ -193,6 +199,42 @@ class LLMClient:
             f"LLM API call successful (response_length: {len(generated_text)})"
         )
         return generated_text
+
+    def _build_system_prompt(self, task: str) -> str:
+        """Build the system prompt.
+
+        Uses the configured master prompt file as baseline if present.
+        Adds strict instructions to preserve placeholders and avoid PII exposure.
+        """
+        master = self._load_master_prompt()
+        safety_appendix = (
+            "\n\n"
+            "SECURITY REQUIREMENTS:\n"
+            "- The user text may contain special-category personal data (GDPR Art. 9).\n"
+            "- Do NOT output personal data, secrets, or identifiers.\n"
+            "- Do NOT modify placeholders like [DATE_...], [EMAIL_...], [PHONE_...], [ID_...], [NAME_...], [ART9_...].\n"
+            "- If placeholders appear, keep them EXACTLY unchanged.\n"
+            f"\nTASK: {task}\n"
+        )
+        if master:
+            return master + safety_appendix
+        return "You are a medical assistant." + safety_appendix
+
+    def _load_master_prompt(self) -> str:
+        if self._cached_master_prompt is not None:
+            return self._cached_master_prompt
+
+        path = Path(self.settings.llm_master_prompt_path)
+        try:
+            if path.exists() and path.is_file():
+                # Limit prompt size to avoid excessive payloads
+                content = path.read_text(encoding="utf-8", errors="replace")
+                self._cached_master_prompt = content[:50_000]
+            else:
+                self._cached_master_prompt = ""
+        except Exception:
+            self._cached_master_prompt = ""
+        return self._cached_master_prompt
     
     def _generate_mock_response(self, prompt: str, task: str) -> str:
         """Generate a mock response for testing/fallback."""
