@@ -58,3 +58,29 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# Android
+*.apk
+*.aab
+*.dex
+*.class
+*.hprof
+
+# Android Studio / Gradle
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.cxx/
+android/captures/
+android/*.iml
+android/.idea/
+android/gradle/wrapper/gradle-wrapper.jar
+
+# Generated files
+android/app/src/main/gen/
+android/app/src/main/assets/
+
+# Signing
+*.jks
+*.keystore

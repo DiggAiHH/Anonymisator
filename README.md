@@ -6,6 +6,7 @@ A privacy-first medical document processing system with PHI anonymization and a 
 
 - **Backend Privacy Proxy**: FastAPI-based service that anonymizes PHI before LLM calls
 - **MCP Tool Server**: Minimal TypeScript server exposing data-minimizing tool endpoints
+- **Android SDK**: Native Android app and SDK for mobile integration
 - **In-Memory Processing**: No persistence of PHI or mappings
 - **Stripe Integration**: Secure webhook handling with signature verification
 
@@ -23,6 +24,12 @@ A privacy-first medical document processing system with PHI anonymization and a 
 - Returns only free time slots (no patient data)
 - Designed for future Postgres integration
 
+### Android SDK (Kotlin)
+- Native Android app for mobile PHI-protected document processing
+- Clean Kotlin SDK with coroutines support
+- Retrofit-based networking with proper error handling
+- Ready-to-install APK for Android 7.0+
+
 ## Setup
 
 ### Prerequisites
@@ -30,6 +37,7 @@ A privacy-first medical document processing system with PHI anonymization and a 
 - Node.js 18+
 - pip
 - npm
+- (For Android) Android Studio with JDK 17
 
 ### Backend Setup
 
@@ -80,6 +88,25 @@ Or for development:
 ```bash
 npm run dev
 ```
+
+### Android SDK Setup
+
+1. Open the `android/` folder in Android Studio
+
+2. Sync Gradle files and build:
+```bash
+cd android
+./gradlew assembleDebug
+```
+
+3. Install on device/emulator:
+```bash
+adb install app/build/outputs/apk/debug/app-debug.apk
+```
+
+4. Or run directly from Android Studio
+
+For more details, see [Android README](android/README.md).
 
 ## API Documentation
 
